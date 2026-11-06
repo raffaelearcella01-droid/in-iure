@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>In Iure — Codici, Quiz e Scrittura di Atti</title>
+  <meta name="description" content="In Iure: consultazione di codici e normative, quiz di apprendimento giuridico e redazione di atti forensi.">
+  <meta name="theme-color" content="#0f2740">
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="In Iure">
+
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/auth.css">
+</head>
+<body>
+
+  <!-- Banner installazione (iOS/Android) -->
+  <div id="install-banner" class="install-banner" hidden>
+    <div class="install-banner__text">
+      <strong>Installa In Iure</strong>
+      <span id="install-hint">Aggiungi l'icona alla schermata Home: si aprirà come un'app.</span>
+    </div>
+    <div class="install-banner__actions">
+      <button id="install-btn" class="btn btn--gold" hidden>Installa</button>
+      <button id="install-close" class="btn btn--ghost" aria-label="Chiudi">&times;</button>
+    </div>
+  </div>
+
+  <!-- Guida installazione iOS (modale) -->
+  <div id="ios-guide" class="modal" hidden>
+    <div class="modal__box">
+      <button class="modal__close" data-close-ios aria-label="Chiudi">&times;</button>
+      <h3>Installa In Iure su iPhone / iPad</h3>
+      <ol class="ios-steps">
+        <li>Tocca il pulsante <strong>Condividi</strong> <span class="ios-share">&#x2191;</span> nella barra di Safari.</li>
+        <li>Scorri e scegli <strong>«Aggiungi a Home»</strong>.</li>
+        <li>Conferma con <strong>«Aggiungi»</strong>: comparirà l'icona di In Iure e si aprirà a schermo intero come un'app.</li>
+      </ol>
+      <button class="btn btn--gold" data-close-ios>Ho capito</button>
+    </div>
+  </div>
+
+  <!-- Condivisione articolo come immagine -->
+  <div id="share-modal" class="modal" hidden>
+    <div class="modal__box modal__box--share">
+      <button class="modal__close" data-close-share aria-label="Chiudi">&times;</button>
+      <h3>Condividi l'articolo</h3>
+      <div id="share-image-wrap" class="share-image-wrap"></div>
+      <div class="share-actions">
+        <button class="btn btn--gold" id="share-save">Salva immagine</button>
+        <a class="btn" id="share-wa" href="https://web.whatsapp.com/" target="_blank" rel="noopener">Apri WhatsApp</a>
+        <button class="btn" id="share-copy-text">Copia testo</button>
+      </div>
+      <p class="share-hint">Su computer: salva l'immagine e trascinala nella chat di WhatsApp. Su telefono, tocca «Salva immagine» oppure usa la condivisione diretta.</p>
+    </div>
+  </div>
+
+  <!-- ============ ACCEDI / REGISTRATI / RECUPERA PASSWORD ============ -->
+  <div id="auth-modal" class="modal" hidden>
+    <div class="modal__box">
+      <button class="modal__close" data-close-modal="#auth-modal" aria-label="Chiudi">&times;</button>
+      <h3>Area riservata In Iure</h3>
+      <div class="auth-tabs">
+        <button class="auth-tab is-active" data-auth-tab="login">Accedi</button>
+        <button class="auth-tab" data-auth-tab="register">Registrati</button>
+      </div>
+      <div id="auth-error" class="auth-error" hidden></div>
+
+      <!-- ACCEDI -->
+      <form id="login-form" class="auth-form" data-auth-pane="login">
+        <label>Username o email
+          <input id="login-id" class="input" type="text" autocomplete="username" required>
+        </label>
+        <label>Password
+          <input id="login-password" class="input" type="password" autocomplete="current-password" required>
+        </label>
+        <button id="login-submit" type="submit" class="btn btn--gold">Accedi</button>
+        <p class="auth-hint">Password dimenticata?
+          <button type="button" class="auth-link" data-auth-tab="reset">Recuperala qui</button>
+        </p>
+      </form>
+
+      <!-- REGISTRATI -->
+      <form id="reg-form" class="auth-form" data-auth-pane="register" hidden>
+        <label>Username
+          <input id="reg-username" class="input" type="text" autocomplete="username" placeholder="es. mario.rossi" required>
+        </label>
+        <label>Email
+          <input id="reg-email" class="input" type="email" autocomplete="email" required>
+        </label>
+        <label>Password
+          <input id="reg-password" class="input" type="password" autocomplete="new-password" placeholder="almeno 6 caratteri" required>
+        </label>
+        <button id="reg-submit" type="submit" class="btn btn--gold">Crea account</button>
+        <p class="auth-hint">Riceverai una <strong>email di conferma</strong>. Per usare tutte le sezioni serve un account registrato e attivo.</p>
+      </form>
+
+      <!-- RECUPERA PASSWORD -->
+      <form id="reset-form" class="auth-form" data-auth-pane="reset" hidden>
+        <label>Username o email dell'account
+          <input id="reset-id" class="input" type="text" autocomplete="username" required>
+        </label>
+        <button id="reset-submit" type="submit" class="btn btn--gold">Invia email di recupero</button>
+        <p class="auth-hint">Ti invieremo un link per impostare una nuova password.
+          <button type="button" class="auth-link" data-auth-tab="login">Torna all'accesso</button>
+        </p>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============ VERIFICA EMAIL ============ -->
+  <div id="verify-modal" class="modal" hidden>
+    <div class="modal__box verify-box">
+      <button class="modal__close" data-close-modal="#verify-modal" aria-label="Chiudi">&times;</button>
+      <div class="verify-mail-icon">&#x2709;</div>
+      <h3>Conferma la tua email</h3>
+      <p class="auth-hint">Abbiamo inviato un link di conferma a<br><strong id="verify-email-addr"></strong>.<br>Aprilo per attivare l'account, poi torna qui.</p>
+      <div class="verify-actions">
+        <button id="verify-refresh" class="btn btn--gold">Ho confermato, verifica</button>
+        <button id="verify-resend" class="btn btn--sm">Invia di nuovo l'email</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ ABBONAMENTO (PAYWALL) ============ -->
+  <div id="paywall-modal" class="modal" hidden>
+    <div class="modal__box">
+      <button class="modal__close" data-close-modal="#paywall-modal" aria-label="Chiudi">&times;</button>
+      <h3>Attiva In Iure</h3>
+      <p class="paywall-lead">Per usare codici, quiz e scrittura di atti serve un abbonamento attivo. Scegli il piano:</p>
+      <div class="plan-grid">
+        <div class="plan">
+          <div class="plan__name" id="pw-mensile-label">Mensile</div>
+          <div class="plan__price" id="pw-mensile-prezzo">— € / mese</div>
+          <div class="plan__note">&nbsp;</div>
+          <button id="pw-buy-mensile" class="btn">Scegli mensile</button>
+        </div>
+        <div class="plan plan--best">
+          <div class="plan__name" id="pw-annuale-label">Annuale</div>
+          <div class="plan__price" id="pw-annuale-prezzo">— € / anno</div>
+          <div class="plan__note" id="pw-annuale-nota">&nbsp;</div>
+          <button id="pw-buy-annuale" class="btn btn--gold">Scegli annuale</button>
+        </div>
+      </div>
+      <p class="paywall-secure">Pagamento sicuro con carta, Apple Pay o Google Pay tramite Stripe. Puoi disdire quando vuoi.</p>
+    </div>
+  </div>
+
+  <!-- ============ MENU ACCOUNT ============ -->
+  <div id="account-modal" class="modal" hidden>
+    <div class="modal__box">
+      <button class="modal__close" data-close-modal="#account-modal" aria-label="Chiudi">&times;</button>
+      <h3>Il tuo account</h3>
+      <p class="account-row"><span>Username:</span> <strong id="account-name"></strong></p>
+      <p class="account-row"><span>Email:</span> <strong id="account-email"></strong></p>
+      <div><span class="account-badge" id="account-status"></span></div>
+      <div class="account-actions">
+        <button id="account-subscribe" class="btn btn--gold" hidden>Attiva abbonamento</button>
+        <button id="account-manage" class="btn" hidden>Gestisci abbonamento</button>
+        <button id="account-logout" class="btn btn--danger">Esci</button>
+      </div>
+    </div>
+  </div>
+
+  <header class="topbar">
+    <button id="account-btn" class="btn btn--sm topbar__account">Accedi</button>
+    <button id="install-top" class="btn btn--gold btn--sm topbar__install">Installa app</button>
+    <div class="topbar__brand" data-nav="home">
+      <img class="logo-img" src="icons/logo.svg" alt="Logo In Iure - bilancia della giustizia" width="60" height="60">
+      <span class="brand-name">In Iure</span>
+      <span class="brand-sub">Diritto a portata di mano</span>
+    </div>
+  </header>
+
+  <nav class="tabbar" role="tablist">
+    <button class="tab is-active" data-section="codici" role="tab">
+      <span class="tab__icon">&#x1F4D6;</span><span class="tab__label">Codici</span>
+    </button>
+    <button class="tab" data-section="quiz" role="tab">
+      <span class="tab__icon">&#x1F393;</span><span class="tab__label">Quiz</span>
+    </button>
+    <button class="tab" data-section="scrittura" role="tab">
+      <span class="tab__icon">&#x270D;</span><span class="tab__label">Scrittura</span>
+    </button>
+    <button class="tab" data-section="preferiti" role="tab">
+      <span class="tab__icon">&#9733;</span><span class="tab__label">Preferiti</span>
+    </button>
+  </nav>
+
+  <main id="app">
+
+    <!-- ============ SEZIONE 1: CODICI E NORMATIVE ============ -->
+    <section id="section-codici" class="section is-active">
+      <div id="codici-home" class="view">
+        <h1 class="view__title">Codici e Normative</h1>
+        <p class="view__lead">Scegli un codice e cerca gli articoli per numero o per parola chiave.</p>
+        <div class="global-search">
+          <input type="search" id="global-search-input" class="input" placeholder="Cerca in tutti i codici: «2043 cc», «art. 309 cpp», «l. 241/1990 art. 21-octies», parola chiave…" autocomplete="off">
+        </div>
+        <div id="codici-categorie"></div>
+      </div>
+
+      <div id="codice-detail" class="view" hidden>
+        <button class="btn btn--back" data-nav="codici">&larr; Codici</button>
+        <div class="codice-head">
+          <h1 id="codice-title" class="view__title"></h1>
+          <p id="codice-desc" class="view__lead"></p>
+          <p id="codice-info" class="codice-info"></p>
+        </div>
+        <div class="search-row">
+          <input type="search" id="codice-search" class="input" placeholder="Cerca articolo: numero (es. 1453) o parola chiave (es. risoluzione)…" autocomplete="off">
+          <span id="codice-count" class="search-count"></span>
+        </div>
+        <div id="articoli-list" class="articoli-list"></div>
+      </div>
+    </section>
+
+    <!-- ============ SEZIONE 2: LEARNING QUIZ ============ -->
+    <section id="section-quiz" class="section">
+      <div id="quiz-home" class="view">
+        <h1 class="view__title">Learning Quiz</h1>
+        <p class="view__lead">Scegli la materia e mettiti alla prova. Dopo ogni risposta ricevi la spiegazione.</p>
+        <div id="quiz-materie" class="card-grid"></div>
+      </div>
+
+      <div id="quiz-play" class="view" hidden>
+        <button class="btn btn--back" data-nav="quiz">&larr; Materie</button>
+        <div class="quiz-head">
+          <h2 id="quiz-materia-title"></h2>
+          <div class="quiz-progress">
+            <div id="quiz-progress-bar" class="quiz-progress__bar"></div>
+          </div>
+          <div class="quiz-meta">
+            <span id="quiz-counter"></span>
+            <span id="quiz-score" class="quiz-score"></span>
+          </div>
+        </div>
+        <div id="quiz-question" class="quiz-question"></div>
+        <div id="quiz-options" class="quiz-options"></div>
+        <div id="quiz-explain" class="quiz-explain" hidden></div>
+        <div class="quiz-nav">
+          <button id="quiz-next" class="btn btn--gold" hidden>Prossima domanda &rarr;</button>
+        </div>
+      </div>
+
+      <div id="quiz-result" class="view" hidden>
+        <button class="btn btn--back" data-nav="quiz">&larr; Materie</button>
+        <div class="result-card">
+          <h2>Quiz completato</h2>
+          <div id="quiz-final-score" class="result-score"></div>
+          <p id="quiz-final-msg"></p>
+          <div class="result-actions">
+            <button id="quiz-restart" class="btn btn--gold">Nuova sessione</button>
+            <button id="quiz-retry-errors" class="btn" hidden>Ripassa gli errori</button>
+          </div>
+        </div>
+        <div id="quiz-review" class="quiz-review"></div>
+      </div>
+    </section>
+
+    <!-- ============ SEZIONE 3: SCRITTURA ATTI ============ -->
+    <section id="section-scrittura" class="section">
+      <div id="scrittura-home" class="view">
+        <h1 class="view__title">Scrittura di Atti</h1>
+        <p class="view__lead">Modelli divisi per materia (civile, penale, lavoro e altro). Cerca per nome, numero di articolo, rito o parola chiave. Compila la bozza e scarica in Word o PDF.</p>
+        <div class="search-row">
+          <input type="search" id="atti-search" class="input" placeholder="Cerca un atto: nome, articolo (es. 444), rito o parola chiave…" autocomplete="off">
+        </div>
+        <div id="atti-materie" class="materia-chips"></div>
+        <div id="atti-list"></div>
+      </div>
+
+      <div id="atto-detail" class="view" hidden>
+        <button class="btn btn--back" data-nav="scrittura">&larr; Formulario</button>
+        <div class="atto-head">
+          <h1 id="atto-title" class="view__title"></h1>
+          <button type="button" id="atto-fav" class="act-btn act-btn--fav">&#9734; Preferito</button>
+        </div>
+        <p id="atto-desc" class="view__lead"></p>
+
+        <div class="atto-tabs">
+          <button class="atto-tab is-active" data-atto-tab="guida">Come si redige</button>
+          <button class="atto-tab" data-atto-tab="compila">Compila la bozza</button>
+        </div>
+
+        <div id="atto-guida" class="atto-panel"></div>
+
+        <div id="atto-compila" class="atto-panel" hidden>
+          <div class="compila-grid">
+            <div>
+              <div class="form-toolbar">
+                <span id="atto-progress" class="form-progress"></span>
+                <button type="button" id="atto-clear" class="btn btn--sm">Svuota campi</button>
+              </div>
+              <p class="form-hint">La bozza si salva da sola su questo dispositivo.</p>
+              <form id="atto-form" class="atto-form"></form>
+            </div>
+            <div class="atto-preview-wrap">
+              <div class="preview-toolbar">
+                <span class="preview-toolbar__title">Anteprima</span>
+                <div class="preview-toolbar__btns">
+                  <button type="button" id="atto-copy" class="btn btn--sm">Copia</button>
+                  <button type="button" id="atto-word" class="btn btn--sm btn--gold">Word</button>
+                  <button type="button" id="atto-pdf" class="btn btn--sm btn--gold">PDF</button>
+                </div>
+              </div>
+              <div id="atto-preview" class="atto-preview"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ SEZIONE 4: PREFERITI ============ -->
+    <section id="section-preferiti" class="section">
+      <div id="preferiti-home" class="view">
+        <h1 class="view__title">Preferiti e impostazioni</h1>
+        <p class="view__lead">Articoli e atti salvati, bozze, risultati dei quiz e preferenze di lettura. Tutto resta solo su questo dispositivo.</p>
+        <div id="preferiti-body"></div>
+        <div class="cat-block">
+          <h2 class="cat-title">Impostazioni</h2>
+          <div class="settings">
+            <div class="settings__row"><span>Dimensione del testo</span>
+              <div class="seg">
+                <button class="seg__btn" data-font="0" aria-label="Testo piccolo">A-</button>
+                <button class="seg__btn" data-font="1" aria-label="Testo normale">A</button>
+                <button class="seg__btn" data-font="2" aria-label="Testo grande">A+</button>
+                <button class="seg__btn" data-font="3" aria-label="Testo piu' grande">A++</button>
+                <button class="seg__btn" data-font="4" aria-label="Testo molto grande">A+++</button>
+              </div>
+            </div>
+            <div class="settings__row"><span>Tema</span>
+              <div class="seg">
+                <button class="seg__btn" data-tema="auto">Automatico</button>
+                <button class="seg__btn" data-tema="chiaro">Chiaro</button>
+                <button class="seg__btn" data-tema="scuro">Scuro</button>
+              </div>
+            </div>
+            <div class="settings__row"><span>Dati salvati</span>
+              <div class="seg">
+                <button class="btn btn--sm" data-reset="quiz">Azzera statistiche quiz</button>
+                <button class="btn btn--sm btn--danger" data-reset="fav">Elimina preferiti e bozze</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Anteprima dell'articolo richiamato -->
+  <div id="xref-modal" class="modal" hidden>
+    <div class="modal__box modal__box--wide">
+      <button class="modal__close" data-close-app-modal aria-label="Chiudi">&times;</button>
+      <div id="xref-body" class="xref-body"></div>
+      <div class="share-actions"><button id="xref-open" class="btn btn--gold">Apri nel codice</button></div>
+    </div>
+  </div>
+
+  <!-- Scelta della sessione di quiz -->
+  <div id="quiz-setup" class="modal" hidden>
+    <div class="modal__box">
+      <button class="modal__close" data-close-app-modal aria-label="Chiudi">&times;</button>
+      <h3 id="quiz-setup-title">Quiz</h3>
+      <p class="auth-hint">Quante domande vuoi affrontare? Le domande e l'ordine delle risposte sono estratti a caso.</p>
+      <div class="len-grid">
+        <button class="btn" data-len="10">10</button>
+        <button class="btn" data-len="15">15</button>
+        <button class="btn" data-len="30">30</button>
+        <button class="btn" data-len="50">50</button>
+        <button class="btn" data-len="all">Tutte</button>
+      </div>
+      <button id="quiz-setup-errori" class="btn btn--gold btn--block" hidden>Ripassa gli errori</button>
+    </div>
+  </div>
+
+  <div id="update-banner" class="update-banner" hidden>
+    <span>È disponibile una versione aggiornata di In Iure.</span>
+    <button id="update-reload" class="btn btn--gold btn--sm">Aggiorna</button>
+  </div>
+  <button id="to-top" class="to-top" hidden aria-label="Torna su">&#8593;</button>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <footer class="footer">
+    <p>In Iure — strumento di studio e consultazione. I contenuti hanno finalità informativa e didattica e non sostituiscono la consultazione delle fonti ufficiali né la consulenza legale.</p>
+    <p class="footer__links">
+      <a href="privacy.html">Privacy</a> ·
+      <a href="cookie.html">Cookie</a> ·
+      <a href="note-legali.html">Note legali</a>
+    </p>
+  </footer>
+
+  <!-- Dati -->
+  <script src="js/update-config.js"></script>
+  <script src="js/versioni.js"></script>
+  <script src="js/codici-index.js"></script>
+  <script src="js/data-quiz.js"></script>
+  <script src="js/data-quiz-extra.js"></script>
+  <script src="js/data-atti.js"></script>
+  <script src="js/data-atti-extra.js"></script>
+  <!-- Logica -->
+  <script src="js/app.js"></script>
+
+  <!-- Account e abbonamenti (Firebase + Stripe) -->
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-functions-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/auth.js"></script>
+</body>
+</html>

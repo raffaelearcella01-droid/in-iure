@@ -1,0 +1,11 @@
+{
+  "appId": "it.iniure.app",
+  "appName": "In Iure",
+  "webDir": "www",
+  "backgroundColor": "#0f2740",
+  "plugins": {
+    "SystemBars": { "insetsHandling": "css", "initialViewportFitValueHint": "cover" },
+    "SplashScreen": { "launchShowDuration": 800, "backgroundColor": "#0f2740", "showSpinner": false },
+    "StatusBar": { "style": "DARK" }
+  }
+}

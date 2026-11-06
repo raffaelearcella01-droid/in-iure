@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#e6c987"/>
+      <stop offset="1" stop-color="#c8a15a"/>
+    </linearGradient>
+  </defs>
+  <g fill="none" stroke="url(#g)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="60" cy="24" r="5" fill="url(#g)" stroke="none"/>
+    <line x1="60" y1="29" x2="60" y2="94"/>
+    <line x1="26" y1="40" x2="94" y2="40"/>
+    <!-- piatto sinistro -->
+    <line x1="26" y1="40" x2="14" y2="64"/>
+    <line x1="26" y1="40" x2="38" y2="64"/>
+    <path d="M12 64 a14 14 0 0 0 28 0 Z" fill="rgba(200,161,90,.15)"/>
+    <!-- piatto destro -->
+    <line x1="94" y1="40" x2="82" y2="64"/>
+    <line x1="94" y1="40" x2="106" y2="64"/>
+    <path d="M80 64 a14 14 0 0 0 28 0 Z" fill="rgba(200,161,90,.15)"/>
+    <!-- base -->
+    <line x1="44" y1="96" x2="76" y2="96"/>
+    <rect x="46" y="94" width="28" height="6" rx="3" fill="url(#g)" stroke="none"/>
+  </g>
+</svg>

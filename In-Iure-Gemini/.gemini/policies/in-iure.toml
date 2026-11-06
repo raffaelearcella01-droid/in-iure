@@ -1,0 +1,7 @@
+# In Iure: Gemini deve rispondere sulle fonti dell'app, non sul web.
+# Blocca la ricerca Google e la lettura di pagine web in questa cartella di lavoro.
+[[rule]]
+toolName = ["google_web_search", "web_fetch"]
+decision = "deny"
+priority = 900
+denyMessage = "In questa cartella Gemini usa solo le fonti dell'app In Iure (server MCP in-iure)."

@@ -1,0 +1,12 @@
+{
+  "name": "in-iure-mcp",
+  "version": "1.0.0",
+  "description": "Server MCP che espone a Gemini CLI (o ad altri client MCP) le norme e i modelli di atti dell'app In Iure",
+  "main": "server.js",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test.js"
+  },
+  "license": "UNLICENSED"
+}

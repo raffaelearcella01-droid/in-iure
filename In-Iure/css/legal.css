@@ -1,0 +1,22 @@
+/* In Iure — stile pagine legali (privacy, cookie, note legali) */
+.legal-top{
+  background:var(--navy);color:#fff;padding:calc(16px + var(--safe-top)) 18px 16px;
+  display:flex;align-items:center;gap:12px;
+}
+.legal-top a{color:#fff;text-decoration:none;font-weight:600;font-size:14px;white-space:nowrap}
+.legal-top .legal-brand{font-family:Georgia,serif;font-size:18px;margin-left:auto}
+.legal-wrap{max-width:820px;margin:0 auto;padding:26px 20px 60px}
+.legal-wrap h1{color:var(--navy);font-size:26px}
+.legal-wrap h2{color:var(--burgundy);font-size:19px;margin-top:28px}
+.legal-wrap p,.legal-wrap li{font-size:15px;color:var(--ink);line-height:1.65}
+.legal-wrap ul{padding-left:20px}
+.legal-wrap .updated{color:var(--ink-soft);font-size:13px;margin-bottom:18px}
+.legal-wrap .todo{
+  background:rgba(200,161,90,.16);border:1px dashed var(--gold-2);
+  border-radius:8px;padding:2px 7px;color:#6a5212;font-weight:700;
+}
+.legal-wrap table{border-collapse:collapse;width:100%;margin:10px 0;font-size:14px}
+.legal-wrap th,.legal-wrap td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+.legal-wrap th{background:var(--paper-2);color:var(--navy)}
+.legal-foot{max-width:820px;margin:0 auto;padding:0 20px 50px}
+.legal-foot a{margin-right:16px;font-size:14px}

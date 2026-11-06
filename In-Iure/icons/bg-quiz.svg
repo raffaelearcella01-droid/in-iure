@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600">
+  <g fill="none" stroke="#0f2740" stroke-opacity="0.032" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+    <!-- libro aperto -->
+    <path d="M150 380 C230 340 280 350 300 372 C320 350 370 340 450 380"/>
+    <path d="M150 380 L150 300 C230 260 280 270 300 292 C320 270 370 260 450 300 L450 380"/>
+    <line x1="300" y1="292" x2="300" y2="372"/>
+    <path d="M180 322 C230 300 270 305 288 318" stroke-opacity="0.05"/>
+    <path d="M312 318 C330 305 370 300 420 322" stroke-opacity="0.05"/>
+  </g>
+  <!-- tocco accademico dorato -->
+  <g fill="none" stroke="#c8a15a" stroke-opacity="0.055" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M300 150 L390 186 L300 222 L210 186 Z"/>
+    <path d="M300 222 L300 250 M240 200 L240 244 C240 262 360 262 360 244 L360 200"/>
+    <line x1="390" y1="186" x2="390" y2="238"/>
+    <circle cx="390" cy="244" r="6" fill="#c8a15a" stroke="none"/>
+  </g>
+</svg>

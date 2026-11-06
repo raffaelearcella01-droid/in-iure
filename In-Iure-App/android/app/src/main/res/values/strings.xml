@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">In Iure</string>
+    <string name="title_activity_main">In Iure</string>
+    <string name="package_name">it.iniure.app</string>
+    <string name="custom_url_scheme">it.iniure.app</string>
+</resources>

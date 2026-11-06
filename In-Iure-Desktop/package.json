@@ -1,0 +1,84 @@
+{
+  "name": "in-iure-desktop",
+  "productName": "In Iure",
+  "version": "1.2.0",
+  "private": true,
+  "description": "In Iure - Codici, Quiz e Atti (versione desktop)",
+  "author": "Roberto Arcella",
+  "main": "main.js",
+  "scripts": {
+    "copy-web": "node scripts/copy-web.js",
+    "start": "node scripts/copy-web.js && electron .",
+    "test": "node scripts/copy-web.js && electron scripts/test-desktop.js",
+    "dist:win": "node scripts/copy-web.js && electron-builder --win --publish never",
+    "dist:mac": "node scripts/copy-web.js && electron-builder --mac --publish never",
+    "dist:linux": "node scripts/copy-web.js && electron-builder --linux --publish never"
+  },
+  "build": {
+    "appId": "it.iniure.desktop",
+    "productName": "In Iure",
+    "copyright": "© 2026 In Iure",
+    "publish": [],
+    "directories": {
+      "output": "INSTALLER",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "app/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico",
+      "artifactName": "InIure-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "In Iure",
+      "installerLanguages": [
+        "it_IT"
+      ],
+      "language": "1040"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "universal"
+          ]
+        }
+      ],
+      "category": "public.app-category.education",
+      "icon": "build/icon.png",
+      "artifactName": "InIure-${version}-mac.${ext}"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Education",
+      "icon": "build/icon.png",
+      "maintainer": "In Iure",
+      "artifactName": "InIure-${version}-linux.${ext}"
+    }
+  },
+  "devDependencies": {
+    "electron": "44.4.5",
+    "electron-builder": "26.16.1",
+    "jspdf": "2.5.2"
+  }
+}

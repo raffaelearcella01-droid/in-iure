@@ -1,0 +1,30 @@
+{
+  "name": "in-iure-app",
+  "version": "1.2.0",
+  "private": true,
+  "description": "App nativa Android/iOS di In Iure (Capacitor) - impacchetta la web-app ../In-Iure",
+  "scripts": {
+    "copy-web": "node scripts/copy-web.js",
+    "test": "node scripts/copy-web.js && node scripts/test-native.js",
+    "sync": "node scripts/copy-web.js && npx cap sync",
+    "android:apk": "node scripts/copy-web.js && npx cap sync android && cd android && gradlew.bat assembleDebug",
+    "android:aab": "node scripts/copy-web.js && npx cap sync android && cd android && gradlew.bat bundleRelease",
+    "android:apk-release": "node scripts/copy-web.js && npx cap sync android && cd android && gradlew.bat assembleRelease",
+    "icons": "npx capacitor-assets generate --iconBackgroundColor #0f2740 --splashBackgroundColor #0f2740"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.5.2",
+    "@capacitor/app": "8.1.1",
+    "@capacitor/core": "8.5.2",
+    "@capacitor/filesystem": "8.1.3",
+    "@capacitor/ios": "8.5.2",
+    "@capacitor/share": "8.0.2",
+    "@capacitor/splash-screen": "8.0.2",
+    "@capacitor/status-bar": "8.0.3",
+    "jspdf": "2.5.2"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "3.0.5",
+    "@capacitor/cli": "8.5.2"
+  }
+}

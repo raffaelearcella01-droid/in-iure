@@ -1,0 +1,10 @@
+# Netlify: il service worker e la pagina principale non vanno tenuti in cache dal browser,
+# cosi' gli utenti ricevono subito le versioni aggiornate (normativa compresa).
+/sw.js
+  Cache-Control: no-cache
+/index.html
+  Cache-Control: no-cache
+/js/codici-index.js
+  Cache-Control: no-cache
+/js/codici-versioni.json
+  Cache-Control: no-cache

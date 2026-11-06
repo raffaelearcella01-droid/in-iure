@@ -1,0 +1,81 @@
+# Pubblicazione di In Iure su GitHub Pages (gratuito). NESSUN aggiornamento programmato.
+# Modo normale: dal PC, doppio clic su "Sito web/AGGIORNA_NORMATIVA.bat": scarica la normativa da Normattiva,
+# mostra cosa e' cambiato e, solo se confermi, la invia qui; questo flusso (evento "push") la mette online.
+# Modo alternativo (facoltativo): scheda "Actions" > "Aggiorna normativa e pubblica" > "Run workflow":
+# scarica e controlla qui su GitHub; con "solo_verifica" non pubblica nulla.
+# Le app installate scaricano i nuovi testi da sole alla prima apertura successiva (nessun pulsante nell'app).
+name: Aggiorna normativa e pubblica
+
+on:
+  workflow_dispatch:
+    inputs:
+      solo_verifica:
+        description: "Solo verifica: scarica e controlla senza pubblicare"
+        type: boolean
+        default: false
+  push:
+    branches: [main]
+    paths: ["In-Iure/**", ".github/workflows/**"]
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: aggiorna-normativa
+  cancel-in-progress: false
+
+jobs:
+  aggiorna:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.pubblica.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Scarica la normativa vigente da Normattiva e rigenera i codici
+        if: github.event_name != 'push'
+        working-directory: In-Iure/tools
+        run: python build_normattiva.py --fetch
+
+      - name: Controlli di sicurezza (se falliscono non si pubblica nulla)
+        working-directory: In-Iure/tools
+        run: python controllo_aggiornamento.py
+
+      - name: Cosa e' cambiato
+        if: github.event_name != 'push'
+        run: git diff --stat -- In-Iure/js | tail -40
+
+      - name: Salva le modifiche nel repository
+        if: github.event_name != 'push' && inputs.solo_verifica != true
+        run: |
+          if ! git diff --quiet -- In-Iure/js; then
+            python In-Iure/tools/bump_sw.py
+            git config user.name "In Iure - aggiornamento automatico"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add In-Iure/js In-Iure/sw.js
+            git commit -m "Aggiornamento automatico della normativa $(date -u +%Y-%m-%d)"
+            git push
+          else
+            echo "Nessuna modifica della normativa."
+          fi
+
+      - name: Prepara il sito
+        if: inputs.solo_verifica != true
+        run: python In-Iure/tools/build_netlify_zip.py --dir _site
+
+      - uses: actions/configure-pages@v5
+        if: inputs.solo_verifica != true
+      - uses: actions/upload-pages-artifact@v3
+        if: inputs.solo_verifica != true
+        with:
+          path: _site
+      - id: pubblica
+        if: inputs.solo_verifica != true
+        uses: actions/deploy-pages@v4
