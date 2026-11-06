@@ -40,3 +40,13 @@ In-Iure/tools/revisioni_*/
 In-Iure/tools/build_codici.py
 In-Iure/tools/build_one.py
 In-Iure/tools/parse_codici.py
+
+# Resoconto locale della revisione automatica di quiz e atti
+CORREZIONI_QUIZ_ATTI.md
+
+# Riepilogo dei lavori (copia Word sul Desktop, generata da In-Iure/tools/riepilogo_docx.py)
+RIEPILOGO_LAVORI.md
+
+# Cache di Python
+__pycache__/
+*.pyc

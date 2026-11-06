@@ -4,7 +4,8 @@
 1. scarica da Normattiva il testo vigente dei codici e lo converte;
 2. esegue i controlli di sicurezza;
 3. ti mostra cosa e' cambiato (report dettagliato articolo per articolo in ULTIMO_AGGIORNAMENTO.md);
-4. SOLO se confermi, applica l'aggiornamento:
+4. SOLO se confermi, Claude controlla e corregge in automatico quiz e atti che citano gli articoli cambiati
+   (revisione_quiz_atti.py, resoconto in CORREZIONI_QUIZ_ATTI.md), poi applica l'aggiornamento:
    - Gemini CLI (server MCP in-iure) legge subito i file nuovi sul PC;
    - NotebookLM: i documenti su Google Drive vengono riscritti e il taccuino si risincronizza da solo;
    - app installate: se GitHub e' attivo, salva su GitHub (il TUO account) e GitHub Pages mette online i nuovi
@@ -75,6 +76,32 @@ def aggiorna_notebooklm():
         print("NotebookLM NON aggiornato (errore sopra, es. internet assente). Verra' recuperato in automatico al prossimo AGGIORNA_NORMATIVA.")
 
 
+def revisione_quiz_atti(js_prima):
+    """Dopo la conferma: Claude controlla e corregge quiz e atti che citano gli articoli cambiati (vedi revisione_quiz_atti.py).
+    Ritorna True se ha cambiato qualcosa. Se fallisce, la normativa si pubblica lo stesso e la revisione resta in sospeso."""
+    sys.path.insert(0, HERE)
+    from revisione_quiz_atti import revisiona
+    try:
+        cambiato, msg = revisiona(js_prima)
+    except Exception as e:
+        cambiato, msg = False, "Quiz e atti NON controllati per un errore imprevisto: %s" % e
+    print(msg)
+    if cambiato:
+        run([sys.executable, "versioni.py"])      # impronte aggiornate: le app scaricano anche quiz e atti corretti
+    return cambiato
+
+
+def pubblica(gitinfo, messaggio):
+    run([sys.executable, "bump_sw.py"])
+    git("add", "In-Iure/js", "In-Iure/sw.js")
+    if os.path.exists(os.path.join(HERE, "_revisione_in_sospeso.json")) or git("ls-files", "In-Iure/tools/_revisione_in_sospeso.json", check=False):
+        git("add", "-A", "In-Iure/tools/_revisione_in_sospeso.json")
+    git("commit", "-m", messaggio)
+    print("\nInvio a GitHub...")
+    run(["git", "push", "origin", "HEAD:main"], cwd=ROOT)
+    print("\nFatto. Entro pochi minuti GitHub pubblica il sito; le app ricevono i nuovi testi alla prossima apertura.")
+
+
 def main():
     print("=== In Iure - aggiornamento della normativa da Normattiva ===\n")
     gitinfo = controlla_git()
@@ -116,6 +143,10 @@ def main():
         if impronta_js() == impronta_prima:
             print("\nNessuna modifica: la normativa dell'app e' gia' aggiornata.")
             confermato = True          # nulla da ripristinare
+            if os.path.exists(os.path.join(HERE, "_revisione_in_sospeso.json")):
+                print("C'e' una revisione di quiz e atti rimasta in sospeso: la riprendo.")
+                if revisione_quiz_atti(None) and gitinfo:
+                    pubblica(gitinfo, "Revisione quiz e atti %s" % datetime.date.today().isoformat())
             aggiorna_notebooklm()      # recupera un eventuale riallineamento non riuscito in precedenza
             return
 
@@ -156,13 +187,11 @@ def main():
             print("Non applicato: i file dell'app tornano come prima. Puoi ripetere quando vuoi.")
             return
         confermato = True
+        print("\n5) Controllo e correzione automatica di quiz e atti sugli articoli cambiati...")
+        rivisti = revisione_quiz_atti(copia_js)
         if gitinfo:
-            run([sys.executable, "bump_sw.py"])
-            git("add", "In-Iure/js", "In-Iure/sw.js")
-            git("commit", "-m", "Aggiornamento normativa %s" % datetime.date.today().isoformat())
-            print("\nInvio a GitHub...")
-            run(["git", "push", "origin", "HEAD:main"], cwd=ROOT)
-            print("\nFatto. Entro pochi minuti GitHub pubblica il sito; le app ricevono i nuovi testi alla prossima apertura.")
+            pubblica(gitinfo, "Aggiornamento normativa %s%s" % (datetime.date.today().isoformat(),
+                                                                " (quiz e atti revisionati)" if rivisti else ""))
         else:
             print("\nFatto per questo PC: Gemini CLI usa gia' i testi nuovi.")
         aggiorna_notebooklm()
