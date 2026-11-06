@@ -1572,7 +1572,7 @@ var QUIZ_EXTRA = [
      "Sia irrilevante la capacita' di intendere e di volere"
     ],
     "corretta": 1,
-    "spiegazione": "L'art. 98 c.p. prevede che il minore degli anni diciotto, ma che ne abbia compiuti quattordici, e' imputabile se aveva capacita' di intendere e di volere, ma la pena e' diminuita; il minore degli anni quattordici non e' mai imputabile ai sensi dell'art. 97 c.p."
+    "spiegazione": "L'art. 98 c.p. prevede che il minore degli anni diciotto, ma che ne abbia compiuti quattordici, e' imputabile se aveva capacita' di intendere e di volere, ma la pena e' diminuita; in tali casi la capacita' di intendere e di volere del minore si presume fino a prova contraria (art. 98, primo comma, secondo periodo, c.p.); il minore degli anni quattordici non e' mai imputabile ai sensi dell'art. 97 c.p."
    },
    {
     "q": "L'omicidio preterintenzionale, disciplinato dall'art. 584 c.p., ricorre quando:",
