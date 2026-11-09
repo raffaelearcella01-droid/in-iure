@@ -26,6 +26,7 @@ In-Iure-NotebookLM/fonti/
 ULTIMO_AGGIORNAMENTO.md
 # Configurazione di Gemini con i percorsi di questo PC: la riscrive In-Iure-Gemini/configura.js a ogni avvio
 In-Iure-Gemini/.gemini/settings.json
+In-Iure-Gemini/.agents/
 
 # Restano SOLO su questo PC (richiesta dell utente 06/11/2026): note interne e script superati
 In-Iure/STATO_PROGETTO.md

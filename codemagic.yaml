@@ -1,58 +1,7 @@
 # Build cloud di In Iure con Codemagic (https://codemagic.io) — nessun Mac necessario.
-# Prerequisiti (una tantum, vedi In-Iure-App/GUIDA_APP_STORE.md):
-#  1. Repository git con questa cartella "Sito web" come radice (In-Iure + In-Iure-App).
-#  2. Account Apple Developer + app "In Iure" creata in App Store Connect con bundle id it.iniure.app.
-#  3. In Codemagic: Teams > Integrations > Developer Portal > chiave API App Store Connect
-#     salvata con il nome indicato sotto in "app_store_connect".
+# Prerequisito: repository git con questa cartella "Sito web" come radice.
+# iOS nativo ELIMINATO il 09/11/2026 (nessuna pubblicazione su App Store): per iPhone si usa la versione web da GitHub Pages.
 workflows:
-  ios-release:
-    name: In Iure iOS (App Store / TestFlight)
-    instance_type: mac_mini_m2
-    max_build_duration: 60
-    working_directory: In-Iure-App
-    integrations:
-      app_store_connect: In Iure ASC Key
-    environment:
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: it.iniure.app
-      node: 22
-      xcode: latest
-      vars:
-        XCODE_PROJECT: "ios/App/App.xcodeproj"
-        XCODE_SCHEME: "App"
-        APP_STORE_APPLE_ID: 0   # sostituire con l'Apple ID numerico dell'app (App Store Connect > Informazioni app)
-    triggering:
-      events: [tag]
-      tag_patterns:
-        - pattern: "v*"
-    scripts:
-      - name: Dipendenze
-        script: npm ci
-      - name: Copia web-app e sincronizza iOS
-        script: |
-          node scripts/copy-web.js
-          npx cap sync ios
-      - name: Profili di firma
-        script: xcode-project use-profiles
-      - name: Numero di build progressivo
-        script: |
-          LATEST=$(app-store-connect get-latest-app-store-build-number "$APP_STORE_APPLE_ID" || echo 0)
-          cd ios/App && agvtool new-version -all $((LATEST + 1))
-      - name: Compila IPA
-        script: |
-          xcode-project build-ipa \
-            --project "$XCODE_PROJECT" \
-            --scheme "$XCODE_SCHEME"
-    artifacts:
-      - build/ios/ipa/*.ipa
-      - /tmp/xcodebuild_logs/*.log
-    publishing:
-      app_store_connect:
-        auth: integration
-        submit_to_testflight: true
-        submit_to_app_store: false
-
   android-release:
     name: In Iure Android (AAB per Google Play)
     instance_type: linux_x2

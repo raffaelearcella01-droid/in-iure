@@ -45,5 +45,29 @@ if (fs.existsSync(jsNormattiva)) {
 
 fs.mkdirSync(path.dirname(f), { recursive: true });
 fs.writeFileSync(f, JSON.stringify(s, null, 2) + "\n");
-console.log("Fonti collegate a Gemini: " + Object.keys(s.mcpServers).join(", "));
+
+/* Antigravity CLI (agy), che ha sostituito Gemini CLI per gli account personali dal 18/06/2026:
+ * stessi server in .agents/mcp_config.json (formato: command/args/cwd, timeoutSeconds) e blocco
+ * degli strumenti web/sistema/scrittura con un hook PreToolUse in .agents/hooks.json. */
+const agents = path.join(__dirname, ".agents");
+fs.mkdirSync(agents, { recursive: true });
+const mcp = { mcpServers: {} };
+for (const [nome, srv] of Object.entries(s.mcpServers)) {
+  const o = { command: srv.command, args: srv.args };
+  if (srv.cwd) o.cwd = srv.cwd;
+  if (srv.timeout) o.timeoutSeconds = Math.round(srv.timeout / 1000);
+  mcp.mcpServers[nome] = o;
+}
+fs.writeFileSync(path.join(agents, "mcp_config.json"), JSON.stringify(mcp, null, 2) + "\n");
+const hooks = {
+  "in-iure-solo-fonti-app": {
+    PreToolUse: [{
+      matcher: "search_web|read_url_content|browser_.*|run_command|write_to_file|replace_file_content|multi_replace_file_content|generate_image",
+      hooks: [{ type: "command", command: "node \"" + slash(path.join(__dirname, "blocca-strumenti.js")) + "\"", timeout: 10 }],
+    }],
+  },
+};
+fs.writeFileSync(path.join(agents, "hooks.json"), JSON.stringify(hooks, null, 2) + "\n");
+
+console.log("Fonti collegate all'assistente: " + Object.keys(s.mcpServers).join(", "));
 for (const a of avvisi) console.log("Avviso: " + a);

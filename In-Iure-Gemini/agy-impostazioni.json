@@ -1,0 +1,6 @@
+{
+  "permissions": {
+    "allow": ["mcp(in-iure/*)", "mcp(sentenzeweb/*)", "mcp(normattiva/*)"],
+    "deny": ["read_url(*)", "execute_url(*)", "command(*)", "write_file(*)"]
+  }
+}

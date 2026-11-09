@@ -99,7 +99,9 @@ I nomi delle voci di Google Cloud cambiano spesso. Se non trovi una voce, cerca 
 
 ---
 
-## B. Gemini CLI: Gemini dal PC sulle fonti dell'app
+## B. Antigravity CLI (Gemini dal PC) sulle fonti dell'app
+
+**Dal 9/11/2026 si usa Antigravity CLI (comando `agy`)**: Google ha chiuso Gemini CLI per gli account personali il 18/06/2026 e lo ha sostituito con Antigravity CLI, che usa gli stessi modelli Gemini. Server, regole e protezione anti-blocco sono gli stessi di prima.
 
 ### Cosa c'è
 - **`In-Iure-MCP/server.js`**, il server "in-iure". Legge **direttamente** i file dell'app (`Sito web/In-Iure/js`) e a ogni domanda controlla se sono cambiati: dopo `AGGIORNA_NORMATIVA.bat` Gemini vede subito il testo nuovo, senza riavviare nulla. Non usa la rete. Strumenti:
@@ -110,10 +112,12 @@ I nomi delle voci di Google Cloud cambiano spesso. Se non trovi una voce, cerca 
   - `cerca_per_estremi` e `leggi_sentenza` (testo integrale a parti, con link al PDF ufficiale);
   - `stato_protezione`.
 - **Normattiva**: il server Normattiva già installato su questo PC (`Documents\MCP\Normattiva-MCP`), che Gemini raggiunge attraverso il filtro anti-blocco `limita-mcp.js`. Serve per le norme non presenti nell'app e per i testi storici.
-- **`In-Iure-Gemini/`**, la cartella di lavoro di Gemini:
-  - `GEMINI.md`: le regole, cioè prima l'app, poi Normattiva, poi SentenzeWeb, sempre la fonte citata, niente risposte a memoria, nessun nome di persone fisiche;
-  - `.gemini/policies/in-iure.toml`: blocca la ricerca Google e la lettura di pagine web;
-  - `configura.js`: ricalcola i percorsi a ogni avvio.
+- **`In-Iure-Gemini/`**, la cartella di lavoro dell'assistente:
+  - `GEMINI.md`: le regole, cioè prima l'app, poi Normattiva, poi SentenzeWeb, sempre la fonte citata, niente risposte a memoria, nessun nome di persone fisiche (Antigravity lo legge così com'è);
+  - `configura.js`: ricalcola i percorsi a ogni avvio e scrive `.agents/mcp_config.json` (le tre fonti) e `.agents/hooks.json`;
+  - `blocca-strumenti.js`: chiamato da `.agents/hooks.json` prima di ogni strumento, blocca ricerca web, lettura di pagine web, browser, comandi di sistema e modifica di file;
+  - `agy-impostazioni.json`: seconda protezione, con permessi validi solo per la sessione avviata dal pulsante (non tocca le impostazioni generali di Antigravity);
+  - `.gemini/`: la vecchia configurazione di Gemini CLI, lasciata ma non più usata.
 - **`AVVIA_GEMINI_IN_IURE.bat`**: il pulsante di avvio.
 
 **Italgiure con credenziali non è collegato a Gemini**, come hai chiesto: al suo posto c'è SentenzeWeb, che è pubblico e ministeriale. Il server Italgiure resta disponibile solo qui in Claude Code, come prima.
@@ -135,26 +139,22 @@ Tutte le richieste ai siti pubblici passano dal modulo `In-Iure-MCP/limitatore.j
 - Il server si presenta ai siti con un nome dichiarato ("InIure-MCP/1.0 (consultazione personale, richieste limitate)") e non si spaccia per un browser.
 - Il sito del Ministero invia una catena di certificati incompleta. Invece di disattivare i controlli di sicurezza, ho incluso il certificato intermedio pubblico che manca (`In-Iure-MCP/certificati/`, emesso da TI Trust Technologies, valido fino al 2029). La verifica del certificato resta completa.
 
-### Come attivare Gemini CLI (una volta sola, circa 3 minuti)
-Gemini CLI è **già installato** su questo PC (versione 0.67.0) e i server sono già configurati. Restano due conferme, che può dare solo il tuo account:
+### Come attivare Antigravity CLI (una volta sola, circa 3 minuti)
+Antigravity CLI è **già installato** su questo PC (versione 1.5.3, in `%LOCALAPPDATA%\agy\bin`) e si aggiorna da solo. Resta l'accesso, che può fare solo il tuo account:
 
-1. **Avvia.** Apri la cartella `Desktop\app\In iure\Sito web` e fai doppio clic su **`AVVIA_GEMINI_IN_IURE.bat`**. Si apre una finestra nera: la prima riga dice "Fonti collegate a Gemini: in-iure, sentenzeweb, normattiva".
-2. **Fidati della cartella.** Gemini chiede "Do you trust this folder?". Con le frecce scegli **"Trust folder"** e premi Invio.
-   **È indispensabile:** nelle cartelle non attendibili Gemini spegne le fonti. Non ho potuto farlo io, perché il sistema di sicurezza di Claude Code mi ha impedito di modificare quella impostazione.
-   Se Gemini chiede di riavviare, chiudi la finestra e rifai il punto 1.
-3. **Accedi.** Gemini chiede come autenticarsi: scegli **"Sign in with Google"** (Accedi con Google). Si apre il browser: entra con il tuo account Google personale e conferma. Poi torna alla finestra nera.
-   L'uso con account personale è gratuito, entro i limiti giornalieri di Google.
-4. **Controlla le fonti.** Scrivi `/mcp` e premi Invio: devono comparire **in-iure**, **sentenzeweb** e **normattiva**, con il pallino verde (connessi).
-   Se una non è connessa, chiudi e riapri con il punto 1. Se ancora non va, dimmi cosa compare.
-5. **Usalo.** Scrivi la domanda e premi Invio, per esempio:
+1. **Avvia.** Apri la cartella `Sito web` e fai doppio clic su **`AVVIA_GEMINI_IN_IURE.bat`**. Si apre una finestra nera: la prima riga dice "Fonti collegate all'assistente: in-iure, sentenzeweb, normattiva".
+2. **Accedi.** Al primo avvio si apre il browser: entra con il tuo account Google personale e conferma, poi torna alla finestra nera. Secondo la documentazione di Google va bene anche l'account gratuito, con limiti di uso (il comando `/usage` mostra quanto ne resta). **Non attivare** piani a pagamento né la fatturazione.
+3. **Controlla le fonti.** Scrivi `/mcp` e premi Invio: devono comparire **in-iure**, **sentenzeweb** e **normattiva**. Scrivi `/hooks`: deve comparire **in-iure-solo-fonti-app**.
+   Se manca qualcosa, chiudi e riapri con il punto 1. Se ancora non va, dimmi cosa compare.
+4. **Usalo.** Scrivi la domanda e premi Invio, per esempio:
    - "Cosa prevede l'art. 1117 c.c.? Ci sono pronunce recenti della Cassazione sul lastrico solare?"
    - "Quali termini prevede l'art. 171-ter c.p.c.?"
    - "Trovami il modello di opposizione a decreto ingiuntivo e spiegami i campi."
+5. **Per uscire** scrivi `/quit` (oppure chiudi la finestra).
 
-   Se Gemini chiede il permesso di usare uno strumento, scegli "Allow always" (consenti sempre).
-6. **Per uscire** scrivi `/quit`.
+Dalla volta successiva basta il punto 1: l'accesso resta memorizzato in Gestione credenziali di Windows.
 
-Dalla volta successiva basta il punto 1: accesso e fiducia nella cartella restano memorizzati.
+**Da verificare dopo il primo accesso (non l'ho potuto provare senza il tuo login):** che Antigravity carichi le fonti dalla cartella `.agents` e che il blocco della ricerca web funzioni. Il comando `agy mcp list` mostra solo le fonti globali, quindi non basta per controllarlo.
 
 ### Come si aggiorna
 - **Norme e atti dell'app:** in automatico, senza alcun passaggio. Il server legge i file di `In-Iure/js` e a ogni domanda controlla se sono cambiati. Quando confermi un aggiornamento della normativa (parte D), Gemini usa subito i testi nuovi, anche con una finestra già aperta. Se invece rifiuti l'aggiornamento, i file tornano come prima e Gemini continua a usare i testi precedenti.
@@ -167,10 +167,10 @@ Dalla volta successiva basta il punto 1: accesso e fiducia nella cartella restan
 ### NotebookLM
 **Sul PC personale non serve nulla:** apri <https://notebooklm.google.com> con lo stesso account Google e trovi il taccuino. Gli aggiornamenti dei documenti partono solo dal PC principale, quello con `client_secret.json`. Non configurare la sincronizzazione su due PC.
 
-### Gemini CLI
+### Antigravity CLI
 **1) Programmi da installare sul PC personale (gratis):**
 - **Node.js** versione LTS, da <https://nodejs.org>;
-- **Gemini CLI**: apri il Prompt dei comandi ed esegui `npm install -g @google/gemini-cli`.
+- **Antigravity CLI**: apri PowerShell ed esegui `irm https://antigravity.google/cli/install.ps1 | iex` (script ufficiale di Google).
 
 **2) Cosa copiare.** Copia l'intera cartella **`Sito web`**, con una chiavetta o con OneDrive. In alternativa basta questo minimo, **mantenendo la stessa struttura**:
 ```
@@ -178,13 +178,13 @@ Sito web\
    AVVIA_GEMINI_IN_IURE.bat
    In-Iure\js\            (tutta la cartella: sono le norme)
    In-Iure-MCP\           (tutta, compresa la sottocartella certificati)
-   In-Iure-Gemini\        (tutta, compresa la cartella nascosta .gemini)
+   In-Iure-Gemini\        (tutta)
 ```
 I percorsi si sistemano da soli: `configura.js` li ricalcola a ogni avvio, qualunque sia la cartella.
 
 **3) Normattiva (facoltativo).** Il server Normattiva è un programma a parte, che si trova in `Documenti\MCP\Normattiva-MCP` su questo PC. Se lo vuoi anche sul PC personale, copia quella cartella nella stessa posizione (`Documenti\MCP\Normattiva-MCP`). Se la metti altrove, imposta la variabile d'ambiente `IN_IURE_NORMATTIVA_MCP` con il percorso. Usa un browser automatico (Playwright): sul nuovo PC può servire `npx playwright install chromium` dentro quella cartella. **Non l'ho provato su un altro PC.** Se manca, Gemini funziona lo stesso con l'app e con SentenzeWeb, e all'avvio lo segnala.
 
-**4) Primo avvio:** come al punto B, cioè `AVVIA_GEMINI_IN_IURE.bat`, accesso con Google, **Trust folder**, poi `/mcp` per il controllo.
+**4) Primo avvio:** come al punto B, cioè `AVVIA_GEMINI_IN_IURE.bat`, accesso con Google, poi `/mcp` e `/hooks` per il controllo.
 
 **5) Tenerlo aggiornato.** Sul PC personale Gemini legge **la copia** dei file dell'app, che non si aggiorna da sola.
 - **Oggi:** dopo ogni aggiornamento della normativa sul PC principale, ricopia la cartella `In-Iure\js` sul PC personale. Se tieni `Sito web` in OneDrive, la sincronizzazione la fa OneDrive.
