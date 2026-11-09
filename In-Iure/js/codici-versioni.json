@@ -1,5 +1,5 @@
 {
- "generato": "2026-11-06T18:54:31Z",
+ "generato": "2026-11-09T08:40:46Z",
  "codici": {
   "costituzione": "2023-10-22",
   "l241": "2026-04-21",
@@ -70,8 +70,8 @@
   "js/codici/tu-giustizia-tributaria.js": "bd157d6611dcb69f82290586b769d9231d113dbd",
   "js/codici/cds.js": "2664175a6d1f231ef2c6b08a46f26e5a7a94bde8",
   "js/codici/ordinamento-forense.js": "3b109b8d19a1e4c37f860d12b6765d31d272e299",
-  "js/data-atti.js": "66f7f6e85b3c66e2f7c5452bd1b093d924194404",
-  "js/data-atti-extra.js": "39e280fe52cd4863f39e363487d2d2c6790e10aa",
+  "js/data-atti.js": "2f492d7c40e7f3194007a2ad1a0fd97799111551",
+  "js/data-atti-extra.js": "33fef898e166534803d6a8f27672b7e72e8a3831",
   "js/data-quiz.js": "8e992fabba70980e98ef9c687b95bfa41854db13",
   "js/data-quiz-extra.js": "f297d07394ec19158a0af308ec69472e935279e0"
  }
