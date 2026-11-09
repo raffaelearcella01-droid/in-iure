@@ -25,6 +25,8 @@
     },
     "files": [
       "main.js",
+      "preload.js",
+      "certificati/**/*",
       "app/**/*",
       "package.json"
     ],

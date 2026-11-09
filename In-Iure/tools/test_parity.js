@@ -7,7 +7,7 @@ const ok = (c, m) => { (c ? pass++ : fail++); console.log((c ? "  OK   " : " FAI
 
 console.log("[1] Integrità dati: stessi contenuti incorporati byte-per-byte");
 const IDX = new Function(fs.readFileSync(APP + "/js/codici-index.js", "utf8") + ";return CODICI_INDEX")();
-const dataFiles = ["js/codici-index.js"].concat(IDX.map(m => m.file)).concat(["js/data-quiz.js", "js/data-quiz-extra.js", "js/data-atti.js", "js/data-atti-extra.js", "js/app.js"]);
+const dataFiles = ["js/codici-index.js"].concat(IDX.map(m => m.file)).concat(["js/data-quiz.js", "js/data-quiz-extra.js", "js/data-atti.js", "js/data-atti-extra.js", "js/ricerca.js", "js/app.js"]);
 dataFiles.forEach(f => {
   let src = fs.readFileSync(APP + "/" + f, "utf8").trim();
   // app.js/dati non contengono "</script>": nel file unico è protetto, quindi confronto la parte prima di eventuali escape

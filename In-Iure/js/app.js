@@ -270,6 +270,8 @@
     if (name === "quiz") { showView($("#section-quiz"), "quiz-home"); renderQuizHome(); }
     if (name === "scrittura") showView($("#section-scrittura"), "scrittura-home");
     if (name === "preferiti") renderPreferiti();
+    if (name === "ricerca" && window.InIureRicerca) InIureRicerca.mostraRicerca();
+    if (name === "salvate" && window.InIureRicerca) InIureRicerca.mostraSalvate();
     pushRoute("#/" + name);
   }
 
@@ -298,6 +300,9 @@
       else if (p[0] === "quiz") goHome("quiz");
       else if (p[0] === "scrittura") goHome("scrittura");
       else if (p[0] === "preferiti") goHome("preferiti");
+      else if (p[0] === "ricerca") goHome("ricerca");
+      else if (p[0] === "salvate") goHome("salvate");
+      else if (p[0] === "sentenza" && p[1] && window.InIureRicerca) InIureRicerca.apriSentenza(decodeURIComponent(p[1]));
       else goHome("codici");
     } finally { applyingRoute = false; }
   }
@@ -1509,7 +1514,7 @@
 
   // Modali dell'app: chiusura con X, clic sullo sfondo, tasto Esc
   var APP_MODALS = ["#xref-modal", "#quiz-setup"];
-  function closeAllModals() { APP_MODALS.concat(["#share-modal", "#ios-guide"]).forEach(function (s) { var m = $(s); if (m) m.hidden = true; }); }
+  function closeAllModals() { APP_MODALS.concat(["#share-modal", "#ios-guide", "#salva-modal"]).forEach(function (s) { var m = $(s); if (m) m.hidden = true; }); }
   APP_MODALS.forEach(function (s) {
     var m = $(s); if (!m) return;
     m.addEventListener("click", function (e) { if (e.target === m || e.target.closest("[data-close-app-modal]")) m.hidden = true; });
@@ -1601,6 +1606,13 @@
 
   /* ---------- Init ---------- */
   applySettings();
+  // sezioni Ricerca (SentenzeWeb) e Sentenze salvate: js/ricerca.js
+  if (window.InIureRicerca) {
+    try {
+      InIureRicerca.init({ store: store, esc: esc, toast: toast, norm: norm, CODICI_INDEX: CODICI_INDEX, showSection: showSection, showView: showView,
+        pushRoute: pushRoute, downloadBlob: downloadBlob, safeName: safeName, copyText: copyText });
+    } catch (e) { if (window.console) console.error("Ricerca non avviata", e); }
+  }
   renderCodiciHome();
   renderQuizHome();
   renderAttiHome("");

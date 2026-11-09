@@ -1,5 +1,5 @@
 /* In Iure — Service Worker (offline cache) */
-var CACHE = "iniure-v18";
+var CACHE = "iniure-v19";
 var ASSETS = [
   "./",
   "./index.html",
@@ -9,6 +9,7 @@ var ASSETS = [
   "./css/styles.css",
   "./css/auth.css",
   "./css/legal.css",
+  "./js/ricerca.js",
   "./js/app.js",
   "./js/firebase-config.js",
   "./js/auth.js",

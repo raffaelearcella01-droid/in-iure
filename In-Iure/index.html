@@ -189,6 +189,12 @@
     <button class="tab" data-section="scrittura" role="tab">
       <span class="tab__icon">&#x270D;</span><span class="tab__label">Scrittura</span>
     </button>
+    <button class="tab" data-section="ricerca" role="tab">
+      <span class="tab__icon">&#x1F50E;</span><span class="tab__label">Ricerca</span>
+    </button>
+    <button class="tab" data-section="salvate" role="tab">
+      <span class="tab__icon">&#x1F4DA;</span><span class="tab__label">Salvate</span>
+    </button>
     <button class="tab" data-section="preferiti" role="tab">
       <span class="tab__icon">&#9733;</span><span class="tab__label">Preferiti</span>
     </button>
@@ -319,6 +325,56 @@
     </section>
 
     <!-- ============ SEZIONE 4: PREFERITI ============ -->
+    <!-- ============ SEZIONE: RICERCA GIURISPRUDENZA (SentenzeWeb) ============ -->
+    <section id="section-ricerca" class="section">
+      <div id="ricerca-home" class="view">
+        <h1 class="view__title">Ricerca giurisprudenza</h1>
+        <p class="view__lead">Provvedimenti civili e penali della Corte di cassazione degli ultimi anni, da SentenzeWeb (archivio pubblico del Ministero della Giustizia). Per uso personale.</p>
+        <div class="atto-tabs" role="tablist">
+          <button type="button" class="atto-tab ric-modo" data-modo="articolo" role="tab">Per articolo</button>
+          <button type="button" class="atto-tab ric-modo is-active" data-modo="parole" role="tab">Parole chiave</button>
+          <button type="button" class="atto-tab ric-modo" data-modo="frase" role="tab">Frase esatta</button>
+        </div>
+        <form id="ric-form" class="ric-form" autocomplete="off">
+          <div id="ric-art" class="ric-riga" hidden>
+            <label class="field ric-codice"><span>Codice o legge</span><select id="ric-codice" class="input"></select></label>
+            <label class="field ric-numero"><span>Articolo</span><input id="ric-numero" class="input" placeholder="es. 2043 o 360-bis" inputmode="text"></label>
+          </div>
+          <div id="ric-testo-wrap"><input type="search" id="ric-testo" class="input" placeholder=""></div>
+          <p id="ric-aiuto" class="form-hint"></p>
+          <details class="ric-filtri"><summary>Filtri e ordine</summary>
+            <div class="ric-riga">
+              <label class="field"><span>Archivio</span><select id="ric-archivio" class="input"><option value="">civile e penale</option><option value="civile">civile</option><option value="penale">penale</option></select></label>
+              <label class="field"><span>Dal</span><select id="ric-anno-da" class="input"></select></label>
+              <label class="field"><span>Al</span><select id="ric-anno-a" class="input"></select></label>
+              <label class="field"><span>Sezione</span><select id="ric-sezione" class="input"><option value="">tutte</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="L">Lavoro</option><option value="U">Sezioni unite</option></select></label>
+              <label class="field"><span>Tipo</span><select id="ric-tipo" class="input"><option value="">tutti</option><option value="Sentenza">Sentenza</option><option value="Ordinanza">Ordinanza</option><option value="Ordinanza Interlocutoria">Ordinanza interlocutoria</option><option value="Decreto">Decreto</option></select></label>
+              <label class="field"><span>Ordine</span><select id="ric-ordine" class="input"><option value="rilevanza">pertinenza</option><option value="recenti">piu' recenti</option></select></label>
+            </div>
+          </details>
+          <div class="form-toolbar"><button type="submit" class="btn btn--gold">Cerca</button><button type="button" id="ric-azzera" class="btn btn--sm">Nuova ricerca</button></div>
+        </form>
+        <div id="ric-stato"></div>
+        <div id="ric-risultati"></div>
+      </div>
+      <div id="sentenza-detail" class="view" hidden>
+        <button class="btn btn--back" data-nav="ricerca">&larr; Ricerca</button>
+        <h1 id="sentenza-titolo" class="view__title"></h1>
+        <div id="sentenza-azioni" class="articolo__actions"></div>
+        <p class="form-hint">Fonte: SentenzeWeb - Corte di cassazione (ItalgiureWeb, Ministero della Giustizia). Testo da riconoscimento ottico: per citazioni esatte verifica sul PDF ufficiale.</p>
+        <div id="sentenza-testo"></div>
+      </div>
+    </section>
+
+    <!-- ============ SEZIONE: SENTENZE SALVATE ============ -->
+    <section id="section-salvate" class="section">
+      <div id="salvate-home" class="view">
+        <h1 class="view__title">Sentenze salvate</h1>
+        <p class="view__lead">Le raccolte di sentenze che hai salvato dalla Ricerca, con le tue note. Restano solo su questo dispositivo: per NotebookLM e Antigravity usa «Esporta Word».</p>
+        <div id="salvate-body"></div>
+      </div>
+    </section>
+
     <section id="section-preferiti" class="section">
       <div id="preferiti-home" class="view">
         <h1 class="view__title">Preferiti e impostazioni</h1>
@@ -365,6 +421,17 @@
     </div>
   </div>
 
+  <!-- Salvataggio di una sentenza in una raccolta -->
+  <div id="salva-modal" class="modal" hidden>
+    <div class="modal__box">
+      <button class="modal__close" id="salva-chiudi" aria-label="Chiudi">&times;</button>
+      <h2 class="sub-title">Salva in una raccolta</h2>
+      <p id="salva-estremi" class="form-hint"></p>
+      <div id="salva-lista" class="materia-chips"></div>
+      <div class="ric-riga"><input id="salva-nuova" class="input" placeholder="Nuova raccolta, es. Responsabilita' medica" maxlength="80"><button class="btn btn--gold" id="salva-crea">Crea e salva</button></div>
+    </div>
+  </div>
+
   <!-- Scelta della sessione di quiz -->
   <div id="quiz-setup" class="modal" hidden>
     <div class="modal__box">
@@ -408,6 +475,7 @@
   <script src="js/data-atti.js"></script>
   <script src="js/data-atti-extra.js"></script>
   <!-- Logica -->
+  <script src="js/ricerca.js"></script>
   <script src="js/app.js"></script>
 
   <!-- Account e abbonamenti (Firebase + Stripe): le librerie Firebase vengono

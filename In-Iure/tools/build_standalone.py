@@ -39,6 +39,7 @@ parts.append(rd("js/data-quiz.js"))
 parts.append(rd("js/data-quiz-extra.js"))
 parts.append(rd("js/data-atti.js"))
 parts.append(rd("js/data-atti-extra.js"))
+parts.append(rd("js/ricerca.js"))
 parts.append(rd("js/app.js"))
 big = "\n".join(parts).replace("</script>", "<\\/script>")  # sicurezza
 

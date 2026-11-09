@@ -69,6 +69,14 @@ app.whenReady().then(async () => {
     await click("#share-wa");
     await wait(300);
     ok(external.some(u => /wa\.me|whatsapp/i.test(u)) && BrowserWindow.getAllWindows().length === 1, "«Apri WhatsApp» apre il browser di sistema (" + (external[0] || "nessuno") + ")");
+
+    console.log("
+[Ricerca] Ponte verso SentenzeWeb");
+    ok(await js("typeof window.InIureDesktopRete === 'object' && typeof window.InIureDesktopRete.get === 'function' && typeof window.require === 'undefined'"), "ponte InIureDesktopRete presente, Node non esposto alla pagina");
+    ok(await js("window.InIureRicerca._interni.trasporto() === 'desktop'"), "la Ricerca usa il ponte desktop");
+    ok(await js("window.InIureDesktopRete.get('https://example.com/').then(() => false, () => true)"), "indirizzi diversi da SentenzeWeb rifiutati");
+    await click('.tab[data-section="ricerca"]');
+    ok(await js("document.querySelector('#section-ricerca').classList.contains('is-active') && !/non e' possibile/.test(document.querySelector('#ric-risultati').textContent)"), "sezione Ricerca attiva, senza avviso di indisponibilita'");
   } catch (e) { fail++; console.error(e); }
 
   console.log("\n========== " + pass + " OK, " + fail + " FAIL ==========");
