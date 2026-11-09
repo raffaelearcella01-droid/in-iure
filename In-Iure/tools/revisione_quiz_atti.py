@@ -5,6 +5,7 @@ La chiama aggiorna_e_pubblica.py DOPO la tua conferma (S), prima della pubblicaz
 1. trova gli articoli cambiati (testo prima/dopo) confrontando i codici vecchi con quelli appena scaricati;
 2. lancia Claude Code in modalita' automatica e ISOLATA: lavora su una COPIA dei file di quiz e atti in una cartella
    temporanea, puo' solo leggere e modificare file (niente comandi, niente internet, niente server MCP);
+   corregge cio' che non e' piu' esatto e, dal 09/11/2026 (scelta dell'utente), AGGIUNGE le novita' rilevanti mancanti;
 3. controlla il risultato: i file devono restare JSON validi, solo ASCII, con la stessa struttura (nessuna domanda o atto
    aggiunto/eliminato, risposta corretta valida, segnaposto {{id}} corrispondenti ai campi). Se un controllo fallisce
    NON applica nulla;
@@ -48,7 +49,16 @@ Lavori in modo AUTOMATICO: nessuno ti rispondera'. Non fare domande. Lavora solo
    - atti: correggi citazioni, testo del template, guida o descrizione.
    Se un articolo e' "eliminato" o abrogato, togli o sostituisci il riferimento solo se il testo vigente indica con
    certezza la norma che lo sostituisce; altrimenti non modificare e segnalalo.
-4. Se e' gia' esatto, NON toccarlo.
+4. AGGIUNGI LE NOVITA' (scelta dell'avvocato del 09/11/2026): se il quiz o l'atto e' ancora esatto ma il testo
+   vigente introduce una novita' RILEVANTE per la regola che tratta (nuovo comma, nuovo periodo, nuova facolta',
+   nuovo termine, nuova eccezione, articolo "nuovo" collegato), integrala nel posto giusto:
+   - quiz: aggiungi la novita' alla spiegazione, citando articolo e comma; cambia domanda, opzioni o risposta
+     corretta SOLO se senza la novita' la risposta non sarebbe piu' esatta e unica;
+   - atti: aggiungi la novita' alla guida (e alla descrizione se serve); nel template solo se l'atto, redatto
+     secondo il testo vigente, deve contenerla (per esempio una nuova dichiarazione obbligatoria), senza creare
+     segnaposto nuovi.
+   Non aggiungere novita' marginali o che non riguardano la regola trattata dal quiz o dall'atto.
+5. Se e' gia' esatto e completo, NON toccarlo.
 
 ## Regole vincolanti
 - Niente contenuti giuridici inventati: ogni affermazione deve risultare dal testo in `modifiche.json` o in `codici/`.
@@ -61,7 +71,9 @@ Lavori in modo AUTOMATICO: nessuno ti rispondera'. Non fare domande. Lavora solo
 ## Risposta finale (in italiano, Markdown, e' il resoconto per l'avvocato)
 ## Correzioni fatte
 Per ognuna: file, materia o id dell'atto, inizio della domanda, articolo, motivo (cosa dice ora la norma).
-## Gia' esatti (nessuna modifica)
+## Novita' aggiunte
+Per ognuna: file, materia o id dell'atto, inizio della domanda, articolo e comma, novita' aggiunta. Se niente, "Nessuna".
+## Gia' esatti e completi (nessuna modifica)
 Elenco sintetico di cio' che hai controllato.
 ## DA VERIFICARE
 Cio' che non hai potuto decidere con certezza, con il motivo. Se niente, scrivi "Nessuno".
