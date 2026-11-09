@@ -519,7 +519,24 @@
   document.addEventListener("DOMContentLoaded", function () {
     wireUI();
     installGate();
-    initFirebase();
+    caricaFirebase(initFirebase);
     updateAccountUI();
   });
+
+  /* Scarica le librerie Firebase solo se la configurazione e' compilata:
+     con l'area riservata spenta nessuna richiesta parte verso i server Google. */
+  function caricaFirebase(poi) {
+    if (window.firebase || !configLooksReady()) { poi(); return; }
+    var base = "https://www.gstatic.com/firebasejs/10.14.1/";
+    var lib = ["firebase-app-compat.js", "firebase-auth-compat.js",
+               "firebase-firestore-compat.js", "firebase-functions-compat.js"];
+    (function prossima(i) {
+      if (i >= lib.length) { poi(); return; }
+      var s = document.createElement("script");
+      s.src = base + lib[i];
+      s.onload = function () { prossima(i + 1); };
+      s.onerror = function () { poi(); };   // offline o bloccato: initFirebase gestisce l'assenza
+      document.head.appendChild(s);
+    })(0);
+  }
 })();

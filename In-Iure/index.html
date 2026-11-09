@@ -410,11 +410,9 @@
   <!-- Logica -->
   <script src="js/app.js"></script>
 
-  <!-- Account e abbonamenti (Firebase + Stripe) -->
-  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-functions-compat.js"></script>
+  <!-- Account e abbonamenti (Firebase + Stripe): le librerie Firebase vengono
+       scaricate da auth.js SOLO se js/firebase-config.js e' compilato.
+       Finche' l'area riservata e' spenta l'app non contatta i server Google. -->
   <script src="js/firebase-config.js"></script>
   <script src="js/auth.js"></script>
 </body>
