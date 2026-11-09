@@ -1,5 +1,5 @@
 /* ============================================================
-   In Iure — strato nativo (solo app Android/iOS via Capacitor)
+   In Iure — strato nativo (solo app Android via Capacitor)
    Viene inserito da scripts/copy-web.js prima di app.js.
    Sostituisce le funzioni web che dentro la WebView non funzionano:
    download di file (blob), stampa/PDF, Web Share API con file.

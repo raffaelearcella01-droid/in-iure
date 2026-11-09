@@ -2,7 +2,7 @@
   "name": "in-iure-app",
   "version": "1.3.0",
   "private": true,
-  "description": "App nativa Android/iOS di In Iure (Capacitor) - impacchetta la web-app ../In-Iure",
+  "description": "App nativa Android di In Iure (Capacitor; iPhone usa la versione web da GitHub Pages) - impacchetta la web-app ../In-Iure",
   "scripts": {
     "copy-web": "node scripts/copy-web.js",
     "test": "node scripts/copy-web.js && node scripts/test-native.js",
@@ -17,7 +17,6 @@
     "@capacitor/app": "8.1.1",
     "@capacitor/core": "8.5.2",
     "@capacitor/filesystem": "8.1.3",
-    "@capacitor/ios": "8.5.2",
     "@capacitor/share": "8.0.2",
     "@capacitor/splash-screen": "8.0.2",
     "@capacitor/status-bar": "8.0.3",

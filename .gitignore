@@ -52,3 +52,6 @@ RIEPILOGO_LAVORI.md
 __pycache__/
 *.pyc
 In-Iure-App/android/.kotlin/
+
+# Archivio locale della vecchia parte iOS (09/11/2026)
+Archivio_iOS/
