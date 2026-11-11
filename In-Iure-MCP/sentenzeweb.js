@@ -267,4 +267,16 @@ if (require.main === module) {
   });
 }
 
-module.exports = { GESTORI, STRUMENTI, testoInQuery, estremi, caricaArticoli };
+/* Per il verificatore delle citazioni: provvedimenti con quel numero e anno (passa dal limitatore e dalla cache). */
+async function perEstremi(numero, anno) {
+  const num = String(numero || "").replace(/\D/g, "").padStart(5, "0");
+  const j = await solr({ q: 'numdec:"' + num + '" AND anno:"' + parseInt(anno, 10) + '"', fq: "kind:(snciv OR snpen)", rows: 10, fl: FL }, CACHE_RICERCHE_MS);
+  return j.response.docs || [];
+}
+async function testoIntegrale(id) {
+  const j = await solr({ q: "id:" + String(id).replace(/[^A-Za-z0-9]/g, ""), rows: 1, fl: FL + ",ocr" }, Infinity);
+  const d = (j.response.docs || [])[0];
+  return d ? [].concat(d.ocr || []).join("\n") : "";
+}
+
+module.exports = { GESTORI, STRUMENTI, testoInQuery, estremi, caricaArticoli, perEstremi, testoIntegrale };

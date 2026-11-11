@@ -94,6 +94,10 @@ function avvia(cartella) {
   verifica(/Salvato/.test(w2) && fs.existsSync(f2) && !fs.existsSync(path.join(base, "Bozza citazione.docx")), "nessuna sovrascrittura e nessuna uscita dalla cartella con ../");
   const xml = zipLeggi(fs.readFileSync(f1), "word/document.xml").toString("utf8");
   verifica(/<w:b\/><\/w:rPr><w:t xml:space="preserve">custode/.test(xml) && /w:jc w:val="right"/.test(xml), "grassetto e allineamento a destra nel file");
+  const inventato = (await s.strumento("salva_documento_word", { nome_file: "Atto con citazione inventata", testo: "Ai sensi dell'art. 9999 c.c. il convenuto risponde." })).testo;
+  verifica(/NON SALVATO/.test(inventato) && /art\. 9999 c\.c\.: NON ESISTE/.test(inventato) && !fs.existsSync(path.join(pr, "In Iure - elaborati", "Atto con citazione inventata.docx")), "atto con un articolo inventato: NON salvato, con l'errore spiegato");
+  const vc = (await s.strumento("verifica_citazioni", { testo: "Il contratto dice \"Il canone mensile e' di euro 800\" e l'art. 2051 c.c. si applica." })).testo;
+  verifica(/nessun errore/.test(vc) && /parola per parola/.test(vc), "verifica_citazioni: articolo dell'app e frase del documento della pratica verificati");
   const rilett = (await s.strumento("leggi_documento", { nome: "In Iure - elaborati/Bozza citazione.docx" })).testo;
   verifica(/risponde ex art\. 2051 c\.c\./.test(rilett), "l'atto salvato si rilegge");
   // verifica indipendente con python-docx, se presente

@@ -280,6 +280,11 @@ const STRUMENTI = [
     inputSchema: { type: "object", properties: { testo: { type: "string", description: "una o piu' parole; tra virgolette per una frase esatta" }, max_risultati: { type: "integer", description: "default 30" } }, required: ["testo"], additionalProperties: false },
   },
   {
+    name: "verifica_citazioni",
+    description: "Verifica AUTOMATICA delle citazioni di un testo sulle fonti vere: articoli (devono esistere nel testo vigente dell'app; le norme fuori dall'app devono essere state scaricate da Normattiva), sentenze di Cassazione (numero, anno, sezione, archivio e date devono coincidere su SentenzeWeb), citazioni tra virgolette (devono trovarsi parola per parola nelle fonti o nei documenti della pratica), provvedimenti di altre autorita' (non verificabili). Usala SEMPRE sul testo finale prima di rispondere con citazioni, e correggi ogni errore. salva_documento_word la esegue da sola e rifiuta i testi con errori.",
+    inputSchema: { type: "object", properties: { testo: { type: "string" } }, required: ["testo"], additionalProperties: false },
+  },
+  {
     name: "salva_documento_word",
     description: "Salva un parere, un atto o una lettera come documento Word (.docx, Times New Roman 12, interlinea 1,5, testo giustificato, numeri di pagina) nella sottocartella \"" + ELABORATI + "\" della pratica. Non sovrascrive mai: se il nome esiste aggiunge un numero. Formato del testo: una riga per paragrafo; \"# \" titolo centrato, \"## \" titolo di sezione, \"- \" elenco puntato, \"1. \" elenco numerato, \"> \" citazione in corsivo rientrata, \"[centro] \" o \"[destra] \" per allineare (es. luogo, data e firma), **grassetto**, *corsivo*, __sottolineato__.",
     inputSchema: {
@@ -293,6 +298,16 @@ const STRUMENTI = [
     },
   },
 ];
+
+function testiPratica() {
+  if (!RADICE) return [];
+  const out = [];
+  for (const f of elenco()) {
+    if (!LEGGIBILI.includes(f.ext) || elaborato(f)) continue;
+    try { out.push(estrai(f).pagine.join("\n")); } catch (e) { /* illeggibile: non entra nel confronto */ }
+  }
+  return out;
+}
 
 const GESTORI = {
   elenca_documenti() {
@@ -343,8 +358,17 @@ const GESTORI = {
       (illeggibili.length ? "\n\nDocumenti non esaminati:\n- " + illeggibili.join("\n- ") : "");
   },
 
-  salva_documento_word(a) {
+  async verifica_citazioni(a) {
+    const { verifica, resoconto } = require("./verifica-citazioni");
+    return resoconto(await verifica(String(a.testo || ""), { documenti: testiPratica() }));
+  },
+
+  async salva_documento_word(a) {
     if (!RADICE) return GESTORI.elenca_documenti();
+    // blocco automatico: nessun documento con citazioni non verificate
+    const { verifica, resoconto } = require("./verifica-citazioni");
+    const r = await verifica(String(a.titolo || "") + "\n" + String(a.testo || ""), { documenti: testiPratica() });
+    if (r.errori.length) return "NON SALVATO: il testo contiene citazioni non verificate. Correggi ogni errore (o togli la citazione, o segnala [DA VERIFICARE] subito dopo, se l'utente deve controllarla) e richiama salva_documento_word.\n\n" + resoconto(r);
     let base = String(a.nome_file || "").replace(/\\/g, "/").split("/").pop().replace(/^[.\s]+/, "").replace(/\.docx$/i, "").replace(/[\\/:*?"<>|\u0000-\u001f]/g, " ").replace(/\s+/g, " ").trim().slice(0, 120);
     if (!base) base = "Elaborato In Iure";
     const dir = path.join(RADICE, ELABORATI);
@@ -353,7 +377,7 @@ const GESTORI = {
     while (fs.existsSync(p)) p = path.join(dir, base + " (" + k++ + ").docx");
     if (!dentro(p)) throw new Error("percorso non ammesso");
     fs.writeFileSync(p, docx(a.titolo || "", a.testo || ""), { flag: "wx" });
-    return "Salvato: " + path.relative(RADICE, p).split(path.sep).join("/") + " (nella cartella della pratica). Comunica all'utente il nome del file e ricordagli di rileggerlo prima di usarlo.";
+    return "Salvato: " + path.relative(RADICE, p).split(path.sep).join("/") + " (nella cartella della pratica). Comunica all'utente il nome del file, le voci [DA VERIFICARE] e ricordagli di rileggerlo prima di usarlo.\n\n" + resoconto(r);
   },
 };
 
