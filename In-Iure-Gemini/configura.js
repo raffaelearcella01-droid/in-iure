@@ -75,7 +75,9 @@ const hooks = {
   "in-iure-solo-fonti-app": {
     PreToolUse: [{
       matcher: "search_web|read_url_content|browser_.*|run_command|write_to_file|replace_file_content|multi_replace_file_content|generate_image",
-      hooks: [{ type: "command", command: "node \"" + slash(path.join(__dirname, "blocca-strumenti.js")) + "\"", timeout: 10 }],
+      // Antigravity esegue il comando senza shell (le virgolette arriverebbero a node cosi' come sono) e dalla
+      // cartella .agents: percorso relativo, senza spazi (verificato con agy 1.5.5 l'11/11/2026).
+      hooks: [{ type: "command", command: "node ../blocca-strumenti.js", timeout: 10 }],
     }],
   },
 };
