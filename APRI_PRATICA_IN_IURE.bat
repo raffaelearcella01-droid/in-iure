@@ -12,4 +12,4 @@ where node >nul 2>nul || (echo Node.js non e' installato: scaricalo da https://n
 where agy >nul 2>nul || (echo Antigravity CLI non e' installato. In PowerShell esegui: irm https://antigravity.google/cli/install.ps1 ^| iex & pause & exit /b 1)
 node configura.js --pratica "%CARTELLA%" || (pause & exit /b 1)
 title In Iure - pratica: %CARTELLA%
-agy --add-dir "%CARTELLA%"
+agy --settings agy-impostazioni.json --add-dir "%CARTELLA%"

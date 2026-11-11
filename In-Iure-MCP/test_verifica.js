@@ -30,6 +30,9 @@ const prova = t => verifica(t, { sentenzeweb: swFinto, documenti: ["Il canone e'
   const n = estraiNorme("artt. 1575 e 1576 c.c.; art. 183, comma 4, c.p.c.; art. 5, commi 1 e 6 lett. b), D.Lgs. 28/2010; d.lgs. 28/2010, art. 5; art. 171-ter c.p.c.; art. 4 del contratto; art. 116 disp. att. c.p.c.; art. 55 della legge 27 luglio 1978, n. 392")
     .map(x => x.articolo + "|" + (x.fonte && (x.fonte.id || x.fonte.tipo + (x.fonte.numero ? ":" + x.fonte.numero + "/" + x.fonte.anno : ""))));
   verifica_(JSON.stringify(n) === JSON.stringify(["1575|codice-civile", "1576|codice-civile", "183|cpc", "5|mediazione", "5|mediazione", "171-ter|cpc", "4|contratto", "116|disp-att-cpc", "55|legge:392/1978"]), "norme: elenchi, commi, forma inversa, contratto, disp. att., legge per esteso (" + n.join(", ") + ")");
+  const ff = estraiNorme("Si applica l'art. 1455 c.c. Il giudice valuta. Vale l'art. 1460, comma 2, c.c. Ne consegue l'art. 658 c.p.c. Infine l'art. 5 L. 392/1978. Fine.")
+    .map(x => x.articolo + "|" + (x.fonte && (x.fonte.id || x.fonte.tipo + ":" + x.fonte.numero)));
+  verifica_(JSON.stringify(ff) === JSON.stringify(["1455|codice-civile", "1460|codice-civile", "658|cpc", "5|legge:392"]), "norme a fine frase seguite da maiuscola (" + ff.join(", ") + ")");
   const s = estraiSentenze("Cass. civ., Sez. 3, Ordinanza n. 14424/2023 (decisa il 04/04/2023); Cass., S.U., 12 maggio 2020, n. 8770; Cass. n. 2154/2021, citata in Cass. civ., Sez. 3, ord. n. 14424/2023.");
   verifica_(s.length === 4 && s[0].sezione === "3" && s[0].archivio === "snciv" && s[1].sezione === "U" && s[1].anno === "2020" && !s[1].ospite && !!s[2].ospite, "sentenze: estremi, Sezioni Unite con data, \"citata in\"");
 

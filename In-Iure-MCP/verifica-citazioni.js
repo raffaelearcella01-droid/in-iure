@@ -102,8 +102,9 @@ function estraiNorme(testo) {
   while ((m = re.exec(testo))) {
     const inizio = m.index + m[0].length;
     // finestra: fino al prossimo "art.", fine frase o parentesi
-    let fine = testo.slice(inizio, inizio + 160).search(/\b(artt?\.|articol[oi])\s*\d|[;\]\n]|(?<!\b[a-z])\)|\.\s+[A-Z]/);
-    if (fine < 0) fine = 160;
+    // a fine frase il punto resta nella finestra: "art. 1455 c.c. Il giudice" -> "1455 c.c." (senza, "c.c" non si riconosce)
+    const mf = testo.slice(inizio, inizio + 160).match(/\b(artt?\.|articol[oi])\s*\d|[;\]\n]|(?<!\b[a-z])\)|\.\s+[A-Z]/);
+    let fine = mf ? mf.index + (mf[0][0] === "." ? 1 : 0) : 160;
     const fin = testo.slice(inizio, inizio + fine);
     // numeri degli articoli: fino alla prima fonte riconosciuta, saltando "comma N", "n. N", "lett. x"
     let pos = 0, fonte = null, nums = [];
