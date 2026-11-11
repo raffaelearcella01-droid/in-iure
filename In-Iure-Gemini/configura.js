@@ -88,8 +88,8 @@ fs.writeFileSync(path.join(regole, "pratica.md"), "---\ntrigger: always_on\n---\
   ? "# Pratica aperta\nL'utente ha aperto la pratica nella cartella `" + slash(PRATICA) + "`. I documenti di questa cartella (strumenti `elenca_documenti`, `leggi_documento`, `cerca_nei_documenti` del server `pratica`) sono l'UNICA fonte dei fatti della pratica: non usare documenti di altre cartelle e non supporre fatti che non risultano da essi o dalle parole dell'utente. All'inizio di ogni richiesta che riguarda la pratica chiama `elenca_documenti`.\n"
   : "# Nessuna pratica aperta\nL'assistente e' stato avviato senza una cartella di documenti. Se l'utente chiede di lavorare su documenti, spiegagli di chiudere e usare APRI_PRATICA_IN_IURE.bat (doppio clic, oppure trascinando la cartella sull'icona).\n"));
 
-/* Skill: quelle di In Iure (in git, cartella skill/) e quelle dello studio adattate (skill-studio/, fuori da git),
- * copiate in .agents/skills dove Antigravity le cerca. */
+/* Skill: SOLO quelle di In Iure (cartella skill/, in git). Le skill di Claude dello studio NON vanno mai date
+ * ad Antigravity (decisione dell'utente dell'11/11/2026: i testi verrebbero inviati ai server Google). */
 const dirSkill = path.join(agents, "skills");
 let nSkill = 0;
 function copiaDir(da, a) {
@@ -99,9 +99,8 @@ function copiaDir(da, a) {
     if (v.isDirectory()) copiaDir(x, y); else fs.copyFileSync(x, y);
   }
 }
-try { require("./importa_skill_studio").importa(); } catch (e) { avvisi.push("skill dello studio non aggiornate: " + e.message); }
 fs.rmSync(dirSkill, { recursive: true, force: true });
-for (const sorg of [path.join(__dirname, "skill-studio"), path.join(__dirname, "skill")]) {
+for (const sorg of [path.join(__dirname, "skill")]) {
   if (!fs.existsSync(sorg)) continue;
   for (const d of fs.readdirSync(sorg, { withFileTypes: true }))
     if (d.isDirectory() && fs.existsSync(path.join(sorg, d.name, "SKILL.md"))) { copiaDir(path.join(sorg, d.name), path.join(dirSkill, d.name)); nSkill++; }
