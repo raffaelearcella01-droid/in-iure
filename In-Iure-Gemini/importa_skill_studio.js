@@ -9,23 +9,19 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 
-const SKILL = [
-  // pareri, analisi e ricerca
-  "parere-legale", "quesito-giuridico", "analisi-fascicolo", "mappatura-fatti", "analisi-transattiva",
-  "valutazione-rischio-legale", "valutazione-giudice-terzo", "revisione-contratti", "screening-nda", "conformita",
-  "ricerca-rapida", "ricerca-approfondita", "audit-citazioni", "stile-forense",
-  // atti
-  "atto-di-citazione-DM110_23", "atto-di-citazione-tradizionale", "comparsa-costituzione", "memorie-171ter",
-  "memoria-replica", "comparsa-conclusionale", "atto-di-appello", "ricorso-cassazione", "controricorso-cassazione",
-  "ricorso-civile", "ricorso-semplificato", "ricorso-gdp", "rito-famiglia", "rito-ordinario-riformato",
-  "nota-a-verbale", "note-trattazione-scritta", "negoziazione-assistita-famiglia", "precetto-aggiornato",
-];
+// elenco delle skill da importare: file RISERVATO, escluso da git (viaggia con Drive)
+const ELENCO = path.join(__dirname, "skill-studio-elenco.txt");
+function elencoSkill() {
+  if (!fs.existsSync(ELENCO)) return [];
+  return fs.readFileSync(ELENCO, "utf8").split(/?
+/).map(x => x.trim()).filter(x => x && !x.startsWith("#"));
+}
 
 const ADATTAMENTO = `
 > **Adattamento per l'assistente In Iure (Antigravity).** Questa skill e' stata scritta per un altro assistente.
 > Valgono le regole di GEMINI.md, che prevalgono su quanto scritto sotto. In particolare:
 > - **Fonti disponibili, e solo queste:** server \`in-iure\` (norme vigenti dell'app e modelli di atti: \`cerca_norme\`, \`leggi_articolo\`, \`cerca_modelli_atti\`, \`leggi_modello_atto\`), \`normattiva\` (norme non presenti nell'app e testi storici), \`sentenzeweb\` (Cassazione, ultimi 5 anni circa: \`cerca_sentenze\`, \`cerca_per_articolo\`, \`leggi_sentenza\`), \`pratica\` (documenti della cartella aperta: \`elenca_documenti\`, \`leggi_documento\`, \`cerca_nei_documenti\`; salvataggio: \`salva_documento_word\`).
-> - Le fonti citate sotto e NON disponibili qui (Italgiure con credenziali, Dirittopratico, OneLegale, BDM, banche dati di merito, NotebookLM, gestionale dello studio, database SQLite, posta) **non vanno usate ne' simulate**: se servirebbero, dillo all'utente ("non consultabile con le fonti disponibili"). Per la giurisprudenza usa solo \`sentenzeweb\`.
+> - Le fonti, banche dati e programmi citati sotto che NON sono nell'elenco qui sopra **non sono disponibili e non vanno usati ne' simulati**: se servirebbero, dillo all'utente ("non consultabile con le fonti disponibili"). Per la giurisprudenza usa solo \`sentenzeweb\`.
 > - Non eseguire script, comandi o programmi (Python, PowerShell, ecc.) e non cercare modelli .docx o carta intestata: non sono disponibili. Scrivi il testo completo e salvalo con \`salva_documento_word\` nella cartella della pratica. I calcoli (interessi, compensi, termini) vanno svolti per esteso nel testo, mostrando i passaggi, e segnalati come da verificare.
 > - Non scrivere file in altro modo e non creare file di appoggio (.md, checkpoint, report): le eventuali parti intermedie si mostrano all'utente nella risposta.
 `;
@@ -53,6 +49,8 @@ function importa(opzioni) {
   fs.rmSync(nuova, { recursive: true, force: true });
   const mancanti = [];
   let n = 0;
+  const SKILL = elencoSkill();
+  if (!SKILL.length) return { importate: 0, motivo: "elenco delle skill assente (" + ELENCO + "): resta la copia esistente" };
   for (const nome of SKILL) {
     const d = path.join(sorg, nome);
     if (!fs.existsSync(path.join(d, "SKILL.md"))) { mancanti.push(nome); continue; }
@@ -73,4 +71,4 @@ if (require.main === module) {
   const r = importa();
   console.log("Skill dello studio importate: " + r.importate + (r.motivo ? " - " + r.motivo : "") + (r.mancanti && r.mancanti.length ? "; non trovate: " + r.mancanti.join(", ") : ""));
 }
-module.exports = { importa, SKILL };
+module.exports = { importa };

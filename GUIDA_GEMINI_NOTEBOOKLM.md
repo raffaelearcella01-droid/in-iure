@@ -174,8 +174,8 @@ L'assistente lavora come un avvocato: dà **pareri**, scrive **qualsiasi atto** 
   - «prepara una diffida ad adempiere»;
   - «quali termini scadono?».
 - **Dove finiscono pareri e atti:** in Word, nella sottocartella **`In Iure - elaborati`** della pratica. Non sovrascrive mai un file esistente. Il formato è Times New Roman 12, interlinea 1,5, testo giustificato, con i numeri di pagina. I dati mancanti sono segnati con `[DA COMPLETARE: ...]`. **Rileggi sempre** prima di usare un atto.
-- **Metodo:** l'assistente usa le skill dello studio (parere-legale, atto-di-citazione-DM110_23, comparsa-costituzione, atto-di-appello, memorie-171ter, ricorso-semplificato, precetto-aggiornato, stile-forense e altre: 32 in tutto), adattate alle fonti di In Iure, più due skill di In Iure (`redazione-atto` per qualsiasi atto e `lavoro-sulla-pratica`).
-  - Le skill dello studio si copiano da sole da `%USERPROFILE%\.claude\skills` a ogni avvio, nella cartella `In-Iure-Gemini/skill-studio`.
+- **Metodo:** l'assistente usa le skill di Claude dello studio, adattate alle fonti di In Iure, più due skill di In Iure (`redazione-atto` per qualsiasi atto e `lavoro-sulla-pratica`).
+  - Le skill dello studio si copiano da sole a ogni avvio in una cartella riservata dell'assistente; l'elenco di quelle da usare e' in un file riservato.
   - Quella cartella **non va su GitHub**, perché il repository di In Iure è pubblico, ma viaggia con Google Drive.
 - **Limiti:**
   - le sentenze vengono solo da SentenzeWeb (Cassazione, ultimi 5 anni circa);
