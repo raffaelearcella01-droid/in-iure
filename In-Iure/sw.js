@@ -1,5 +1,5 @@
 /* In Iure — Service Worker (offline cache) */
-var CACHE = "iniure-v19";
+var CACHE = "iniure-v20";
 var ASSETS = [
   "./",
   "./index.html",

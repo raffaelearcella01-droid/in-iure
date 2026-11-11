@@ -7,8 +7,10 @@
    - Protezione anti-blocco sul dispositivo: una richiesta alla volta, intervallo minimo, tetti orari e giornalieri,
      pausa automatica ai segnali di rifiuto, memoria delle risposte (le ricerche ripetute non contattano il sito).
    - Il sito non accetta richieste dalle pagine web (manca CORS): la ricerca funziona nelle app Android (richiesta
-     nativa) e Windows (processo principale). Nel browser e sull'iPhone restano le sentenze salvate, l'importazione
-     delle raccolte esportate da un altro dispositivo e il collegamento al sito ufficiale.
+     nativa) e Windows (processo principale). Su iPhone/iPad passa dai Comandi Rapidi di iOS: l'app prepara
+     l'indirizzo della richiesta, il comando "In Iure SentenzeWeb" la esegue e copia la risposta negli appunti, l'app
+     la incolla (controllando che corrisponda alla richiesta) e la mette nella stessa memoria delle altre ricerche.
+     Negli altri browser restano le sentenze salvate, l'importazione delle raccolte e il collegamento al sito.
    - Sentenze salvate: raccolte, note, eliminazione singola/multipla, esportazione Word (per NotebookLM e
      Antigravity) e file In Iure (.json) per spostarle su un altro dispositivo. Restano SOLO sul dispositivo.
    ============================================================ */
@@ -23,6 +25,8 @@
   var AUTO_MAX = 2000;              // fino a questo numero l'elenco completo si scarica da solo
   var LIMITI = { intervalloMs: 3000, orari: 120, giornalieri: 600, pausaMs: 30 * 60 * 1000 };
   var CACHE_RICERCHE_MS = 24 * 3600 * 1000;
+  var COMANDO = "In Iure SentenzeWeb";   // nome del Comando Rapido da creare sull'iPhone (vedi istruzioniComando)
+  var ATTESA_MAX_MS = 2 * 3600 * 1000;   // una richiesta in attesa del comando vale 2 ore
 
   var A = null;                     // funzioni dell'app (passate da app.js)
   function $(s, r) { return (r || document).querySelector(s); }
@@ -83,7 +87,16 @@
     if (Cap && Cap.isNativePlatform && Cap.isNativePlatform() && Cap.Plugins && Cap.Plugins.CapacitorHttp) return "android";
     if (window.InIureDesktopRete && window.InIureDesktopRete.get) return "desktop";
     if (window.__InIureRicercaTest) return "test";
+    if (suIOS()) return "comandi";
     return null;
+  }
+  function suIOS() {
+    var n = window.navigator || {};
+    return /iphone|ipad|ipod/i.test(n.userAgent || "") || (/Macintosh/.test(n.userAgent || "") && n.maxTouchPoints > 1);
+  }
+  function ErroreComandi(url) { var e = new Error("COMANDI_RAPIDI"); e.url = url; return e; }
+  function linkComando(url) {
+    return "shortcuts://run-shortcut?name=" + encodeURIComponent(COMANDO) + "&input=text&text=" + encodeURIComponent(url);
   }
   function richiestaGrezza(url) {
     var t = trasporto();
@@ -109,6 +122,8 @@
       if (s.pausaFino > ora) throw ErroreLimite("Protezione anti-blocco: il sito ha dato segni di rifiuto, ricerche sospese per " + Math.ceil((s.pausaFino - ora) / 60000) + " minuti.");
       if (s.r.filter(function (t) { return ora - t < 3600000; }).length >= LIMITI.orari) throw ErroreLimite("Protezione anti-blocco: raggiunto il tetto di " + LIMITI.orari + " richieste in un'ora. Riprova piu' tardi: le ricerche gia' fatte restano disponibili.");
       if (s.r.length >= LIMITI.giornalieri) throw ErroreLimite("Protezione anti-blocco: raggiunto il tetto di " + LIMITI.giornalieri + " richieste in 24 ore.");
+      // iPhone: la richiesta la fa il Comando Rapido; si conta quando la risposta viene incollata
+      if (trasporto() === "comandi") throw ErroreComandi(url);
       var manca = ultima + LIMITI.intervalloMs - ora;
       return attesa(manca > 0 ? manca : 0).then(function () {
         ultima = Date.now();
@@ -277,6 +292,7 @@
     }).catch(function (e) {
       if (giro !== giroRicerca) return;
       stato.inCorso = false;
+      if (e.message === "COMANDI_RAPIDI") { inAttesa(e.url, "ricerca"); stato.comandi = e.url; disegnaRisultati(); return; }
       stato.errore = e.message === "NON_DISPONIBILE" ? "NON_DISPONIBILE" : (e.message || "Errore di rete");
       disegnaRisultati();
     });
@@ -294,6 +310,7 @@
       box.innerHTML = t ? '<div class="sentenza-testo">' + A.esc(t).replace(/\n{2,}/g, "</p><p>").replace(/^/, "<p>").replace(/$/, "</p>") + "</div>"
         : '<p class="empty">Testo non disponibile.</p>';
     }).catch(function (e) {
+      if (e.message === "COMANDI_RAPIDI") { inAttesa(e.url, "sentenza:" + id); box.innerHTML = pannelloComandi(e.url, "il testo integrale"); return; }
       box.innerHTML = '<p class="empty">' + (e.message === "NON_DISPONIBILE"
         ? "Il testo integrale si scarica solo dall'app Android o Windows. Puoi aprire il PDF ufficiale con il tasto qui sopra."
         : A.esc(e.message)) + "</p>";
@@ -468,6 +485,80 @@
       '<li>cerca sull\'app Android o Windows, salva le sentenze in una raccolta, usa «Esporta per altro dispositivo» e apri qui il file con «Importa raccolta» nella sezione <a href="#/salvate">Salvate</a>: leggerai i testi anche offline;</li>' +
       '<li>apri il sito ufficiale: <a href="' + SITO + '" target="_blank" rel="noopener">SentenzeWeb</a>.</li></ul></div>';
   }
+  /* ---------------------------------------------------------------- iPhone: Comandi Rapidi */
+  function inAttesa(url, dove) { A.store.set("ric_comandi_attesa", { url: url, dove: dove, t: Date.now() }); }
+  function attesaCorrente() {
+    var a = A.store.get("ric_comandi_attesa", null);
+    return a && a.url && Date.now() - a.t < ATTESA_MAX_MS ? a : null;
+  }
+  function pannelloComandi(url, cosa) {
+    var p = new URL(url).searchParams, start = +(p.get("start") || 0), rows = +(p.get("rows") || 0);
+    var quale = cosa || (start ? "le schede da " + (start + 1).toLocaleString("it-IT") + " a " + (start + rows).toLocaleString("it-IT") : "i risultati");
+    return '<div class="ric-avviso ric-comandi"><p><b>iPhone: scarica ' + A.esc(quale) + ' con il Comando Rapido</b></p>' +
+      '<ol><li><a class="btn btn--sm" id="ric-esegui-comando" href="' + A.esc(linkComando(url)) + '">1. Esegui «' + A.esc(COMANDO) + '»</a></li>' +
+      '<li>quando il comando ha finito torna qui e tocca <button class="btn btn--sm" id="ric-incolla">2. Incolla i risultati</button></li></ol>' +
+      '<div id="ric-incolla-manuale" hidden><p>Se il tasto non riesce a leggere gli appunti, tieni premuto nel riquadro, scegli «Incolla» e poi tocca «Usa il testo».</p>' +
+      '<textarea id="ric-incolla-testo" rows="4" placeholder="Incolla qui"></textarea> <button class="btn btn--sm" id="ric-incolla-usa">Usa il testo</button></div>' +
+      '<p class="ric-comandi__err" id="ric-incolla-errore" hidden></p>' + istruzioniComando() + "</div>";
+  }
+  function istruzioniComando() {
+    return '<details class="ric-comandi__guida"><summary>Prima volta? Crea il comando (una sola volta)</summary><ol>' +
+      "<li>Apri l'app <b>Comandi</b> dell'iPhone, tocca <b>+</b> e chiama il comando esattamente <b>" + A.esc(COMANDO) + "</b>.</li>" +
+      "<li>Aggiungi l'azione <b>Ottieni contenuto dell'URL</b>; come URL scegli la variabile <b>Input comando rapido</b> (metodo GET).</li>" +
+      "<li>Aggiungi l'azione <b>Ottieni testo da input</b> (input: <b>Contenuto dell'URL</b>).</li>" +
+      "<li>Aggiungi l'azione <b>Copia negli appunti</b> (il <b>Testo</b> del passo precedente).</li>" +
+      "<li>Facoltativo: aggiungi <b>Mostra notifica</b> con il testo «Fatto: torna a In Iure e tocca Incolla».</li>" +
+      "<li>Se il comando lo chiede, nelle sue impostazioni (icona <b>i</b>) consenti che riceva <b>Testo</b>.</li></ol>" +
+      "<p>Il comando esegue solo la richiesta preparata dall'app verso il sito pubblico SentenzeWeb e ne copia la risposta: non legge altro e non invia dati altrove. " +
+      "La protezione anti-blocco dell'app (tetti orari e giornalieri, pausa ai rifiuti) vale anche qui.</p></details>";
+  }
+  function introComandi() {
+    return '<div class="ric-avviso"><p><b>Su iPhone e iPad la ricerca passa dai Comandi Rapidi.</b> Il sito SentenzeWeb non accetta ricerche dalle pagine web: ' +
+      "l'app prepara la richiesta, il comando «" + A.esc(COMANDO) + "» la esegue e tu incolli qui i risultati. Serve per ogni blocco di 500 schede e per ogni testo integrale.</p>" +
+      istruzioniComando() + "</div>";
+  }
+  function stessiParametri(url, j) {
+    var att = new URL(url).searchParams, eco = (j.responseHeader && j.responseHeader.params) || null;
+    if (!eco) return false;
+    return ["q", "fq", "start", "rows", "fl", "sort"].every(function (k) {
+      var a = att.getAll(k).map(String).sort(), b = [].concat(eco[k] == null ? [] : eco[k]).map(String).sort();
+      return JSON.stringify(a) === JSON.stringify(b);
+    });
+  }
+  function erroreIncolla(msg) {
+    var el = $("#ric-incolla-errore"); if (el) { el.textContent = msg; el.hidden = false; }
+    var man = $("#ric-incolla-manuale"); if (man) man.hidden = false;
+    A.toast(msg);
+  }
+  function usaIncollato(testo) {
+    var a = attesaCorrente();
+    if (!a) { erroreIncolla("Nessuna richiesta in attesa: rifai la ricerca."); return Promise.resolve(false); }
+    var j = null;
+    try { j = JSON.parse(String(testo || "").trim()); } catch (e) { j = null; }
+    if (!j || !j.response) {
+      var inizio = String(testo || "").trim().slice(0, 120);
+      if (/\b(403|429|503)\b|forbidden|too many/i.test(inizio)) {
+        var s2 = limStato(); s2.pausaFino = Date.now() + LIMITI.pausaMs; limSalva(s2);
+        erroreIncolla("SentenzeWeb ha rifiutato la richiesta: ricerche sospese per 30 minuti per non essere bloccati.");
+      } else erroreIncolla(inizio ? "Negli appunti non ci sono i risultati di SentenzeWeb (inizia con: «" + inizio + "»). Esegui di nuovo il comando." : "Gli appunti sono vuoti: esegui prima il comando.");
+      return Promise.resolve(false);
+    }
+    if (!stessiParametri(a.url, j)) { erroreIncolla("Gli appunti contengono i risultati di un'altra richiesta: tocca di nuovo «1. Esegui» e poi «2. Incolla»."); return Promise.resolve(false); }
+    var s = limStato(); s.r = (s.r || []).concat([Date.now()]); limSalva(s);   // la richiesta fatta dal comando conta nei tetti
+    return kvSet("c|" + a.url, { t: Date.now(), v: j }).then(function () {
+      A.store.set("ric_comandi_attesa", null);
+      if (/^sentenza:/.test(a.dove)) apriSentenza(a.dove.slice(9));
+      else if (stato.richiesta && stato.comandi === a.url) { stato.comandi = null; caricaBlocco(stato.caricate, stato.giro); }
+      else { var r = A.store.get("ricerca_ultima", null); if (r) { riempiForm(r); cerca(r); } }
+      return true;
+    });
+  }
+  function incolla() {
+    var c = window.navigator.clipboard;
+    if (!c || !c.readText) { erroreIncolla("Questo browser non lascia leggere gli appunti dal tasto: usa il riquadro qui sotto."); return; }
+    c.readText().then(usaIncollato, function () { erroreIncolla("Lettura degli appunti non permessa: usa il riquadro qui sotto."); });
+  }
+
   function disegnaStato() {
     var el = $("#ric-stato"); if (!el) return;
     if (!stato.richiesta) { el.innerHTML = ""; return; }
@@ -478,17 +569,17 @@
   function disegnaRisultati() {
     var box = $("#ric-risultati"); if (!box) return;
     disegnaStato();
-    if (!stato.richiesta) { box.innerHTML = trasporto() ? "" : avvisoNonDisponibile(); return; }
+    if (!stato.richiesta) { box.innerHTML = trasporto() === "comandi" ? introComandi() : trasporto() ? "" : avvisoNonDisponibile(); return; }
     if (stato.errore === "NON_DISPONIBILE") { box.innerHTML = avvisoNonDisponibile(); return; }
     if (stato.errore) { box.innerHTML = '<p class="empty">' + A.esc(stato.errore) + "</p>"; return; }
-    var html = "";
-    if (!stato.inCorso && stato.caricate < stato.totale) {
+    var html = stato.comandi ? pannelloComandi(stato.comandi) : "";
+    if (!stato.comandi && !stato.inCorso && stato.caricate < stato.totale) {
       var mancano = stato.totale - stato.caricate, giri = Math.ceil(mancano / BLOCCO);
       html += '<div class="ric-avviso"><p>Ricerca molto ampia: caricate le prime ' + stato.caricate.toLocaleString("it-IT") + " schede su " + stato.totale.toLocaleString("it-IT") +
         ". Per averle tutte servono altre " + giri + " richieste (circa " + Math.ceil(giri * LIMITI.intervalloMs / 1000) + " secondi). Puoi anche restringere la ricerca con i filtri.</p>" +
         '<button class="btn btn--sm" id="ric-carica-tutte">Carica tutte le schede</button></div>';
     }
-    if (!stato.schede.length && !stato.inCorso && !stato.totale) html += '<p class="empty">Nessun risultato. Prova con meno parole, con l\'asterisco (risarci*) o con OR tra sinonimi.</p>';
+    if (!stato.comandi && !stato.schede.length && !stato.inCorso && !stato.totale) html += '<p class="empty">Nessun risultato. Prova con meno parole, con l\'asterisco (risarci*) o con OR tra sinonimi.</p>';
     html += stato.schede.slice(0, stato.mostrate).map(schedaHTML).join("");
     if (stato.schede.length > stato.mostrate) html += '<button class="btn btn--block load-more" id="ric-altre">Mostra altri ' + Math.min(50, stato.schede.length - stato.mostrate) + " (" + (stato.schede.length - stato.mostrate) + " ancora)</button>";
     box.innerHTML = html;
@@ -579,7 +670,7 @@
       disegnaRisultati();
     });
     document.addEventListener("click", function (e) {
-      var t = e.target.closest("[data-apri],[data-salva],[data-copia-estremi],#ric-altre,#ric-carica-tutte,[data-raccolta],#raccolte-indietro,#raccolta-crea," +
+      var t = e.target.closest("[data-apri],[data-salva],[data-copia-estremi],#ric-altre,#ric-carica-tutte,#ric-incolla,#ric-incolla-usa,[data-raccolta],#raccolte-indietro,#raccolta-crea," +
         "[data-esporta-word],[data-esporta-file],[data-rinomina],[data-elimina-raccolta],[data-togli],#elimina-selezionate,[data-in],#salva-crea,#salva-chiudi");
       if (!t) return;
       if (t.hasAttribute("data-apri")) { e.preventDefault(); apriSentenza(t.getAttribute("data-apri")); return; }
@@ -587,6 +678,8 @@
       if (t.hasAttribute("data-copia-estremi")) { var s2 = trovaScheda(t.getAttribute("data-copia-estremi")); if (s2) A.copyText(s2.estremi + (s2.pdf ? "\n" + s2.pdf : ""), "Estremi copiati"); return; }
       if (t.id === "ric-altre") { stato.mostrate += 50; disegnaRisultati(); return; }
       if (t.id === "ric-carica-tutte") { caricaBlocco(stato.caricate, stato.giro); return; }
+      if (t.id === "ric-incolla") { e.preventDefault(); incolla(); return; }
+      if (t.id === "ric-incolla-usa") { e.preventDefault(); usaIncollato(($("#ric-incolla-testo") || {}).value); return; }
       if (t.hasAttribute("data-raccolta")) { disegnaSalvate(t.getAttribute("data-raccolta")); window.scrollTo(0, 0); return; }
       if (t.id === "raccolte-indietro") { disegnaSalvate(null); return; }
       if (t.id === "raccolta-crea") { var n = window.prompt("Nome della nuova raccolta (es. Responsabilita' medica):"); if (n && nuovaRaccolta(n)) disegnaSalvate(null); return; }
@@ -654,12 +747,16 @@
       riempiForm(A.store.get("ricerca_ultima", null));
       collega();
       disegnaRisultati();
+      // iPhone: se l'app e' stata ricaricata mentre il comando lavorava, la ricerca riparte (dalla memoria) fino al blocco in attesa
+      var a = trasporto() === "comandi" && attesaCorrente(), ru = A.store.get("ricerca_ultima", null);
+      if (a && a.dove === "ricerca" && ru) cerca(ru);
     },
     mostraRicerca: function () { A.showView($("#section-ricerca"), "ricerca-home"); disegnaRisultati(); },
     mostraSalvate: function () { disegnaSalvate(); },
     apriSentenza: apriSentenza,
     // per i test e per Antigravity (stessa costruzione delle ricerche)
     _interni: { paroleInQuery: paroleInQuery, fraseInQuery: fraseInQuery, articoloInQuery: articoloInQuery, filtri: filtri, estremi: estremi,
-      raccolte: raccolte, aggiungi: aggiungi, rimuovi: rimuovi, nuovaRaccolta: nuovaRaccolta, LIMITI: LIMITI, trasporto: trasporto }
+      raccolte: raccolte, aggiungi: aggiungi, rimuovi: rimuovi, nuovaRaccolta: nuovaRaccolta, LIMITI: LIMITI, trasporto: trasporto,
+      usaIncollato: usaIncollato, limStato: function () { return limStato(); }, stessiParametri: stessiParametri, linkComando: linkComando, COMANDO: COMANDO }
   };
 })();

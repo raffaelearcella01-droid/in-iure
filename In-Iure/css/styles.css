@@ -370,3 +370,6 @@ table.stats th{font-size:12px;text-transform:uppercase;letter-spacing:.5px;color
 @media(max-width:400px){.tab{padding:9px 1px}.tab__label{font-size:10px}.tab__icon{font-size:20px}}
 .ric-riga .field > span{display:block;font-size:13px;font-weight:700;color:var(--navy);margin-bottom:5px}
 .ric-riga select.input,.ric-riga .field .input{width:100%}
+.ric-comandi ol{margin:4px 0 8px;padding-left:20px}.ric-comandi li{margin:6px 0}
+.ric-comandi textarea{width:100%;box-sizing:border-box;font:inherit;font-size:14px;border:1px solid var(--line);border-radius:8px;padding:8px;margin:4px 0}
+.ric-comandi__err{color:#b3261e;font-weight:600}.ric-comandi__guida{margin-top:8px}.ric-comandi__guida summary{cursor:pointer;font-weight:600}.ric-comandi__guida ol{padding-left:20px}
