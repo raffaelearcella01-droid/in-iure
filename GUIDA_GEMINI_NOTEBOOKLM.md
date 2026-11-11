@@ -109,6 +109,7 @@ I nomi delle voci di Google Cloud cambiano spesso. Se non trovi una voce, cerca 
   - `cerca_modelli_atti` e `leggi_modello_atto` per i modelli.
 - **`In-Iure-MCP/sentenzeweb.js`**, il server "sentenzeweb". Interroga **SentenzeWeb**, l'archivio **pubblico e gratuito** dei provvedimenti civili e penali della Corte di cassazione degli ultimi 5 anni circa, sul portale ItalgiureWeb del **Ministero della Giustizia** (italgiure.giustizia.it/sncass). **Nessuna credenziale.** Strumenti:
   - `cerca_sentenze` (parole chiave, con filtri per archivio, anno, sezione e tipo);
+  - `cerca_per_articolo` (tutte le sentenze che citano un articolo, unendo le diverse forme di citazione: e' la stessa ricerca della sezione Ricerca dell'app; stessi filtri);
   - `cerca_per_estremi` e `leggi_sentenza` (testo integrale a parti, con link al PDF ufficiale);
   - `stato_protezione`.
 - **Normattiva**: il server Normattiva già installato su questo PC (`Documents\MCP\Normattiva-MCP`), che Gemini raggiunge attraverso il filtro anti-blocco `limita-mcp.js`. Serve per le norme non presenti nell'app e per i testi storici.
@@ -159,6 +160,15 @@ Dalla volta successiva basta il punto 1: l'accesso resta memorizzato in Gestione
 ### Come si aggiorna
 - **Norme e atti dell'app:** in automatico, senza alcun passaggio. Il server legge i file di `In-Iure/js` e a ogni domanda controlla se sono cambiati. Quando confermi un aggiornamento della normativa (parte D), Gemini usa subito i testi nuovi, anche con una finestra già aperta. Se invece rifiuti l'aggiornamento, i file tornano come prima e Gemini continua a usare i testi precedenti.
 - **Normattiva e SentenzeWeb:** sono online, quindi sono sempre i dati del giorno, salvo le risposte già in cache: 24 ore per le ricerche.
+
+### Usare con NotebookLM e Antigravity le sentenze salvate nell'app
+Le raccolte della sezione **Salvate** restano solo sul telefono o sul PC dove le hai create: né NotebookLM né Antigravity possono leggerle da lì. Per usarle si esportano.
+1. Nell'app apri **Salvate**, scegli la raccolta e premi **«Esporta Word (NotebookLM / Antigravity)»**. Ottieni il file `Sentenze_<nome raccolta>.doc`: per ogni sentenza ci sono gli estremi, il link al PDF ufficiale, la tua nota e il testo integrale (se l'hai aperta o salvata con il collegamento attivo).
+2. **NotebookLM:** carica il file su Google Drive e aprilo con Google Documenti (si converte in un documento Google). Poi, nel taccuino, scegli «Aggiungi fonte» > Google Drive e selezionalo. Tienilo separato dalle 29 fonti automatiche dell'app: quelle le aggiorna lo script, questo no.
+3. **Antigravity:** copia il file nella cartella `In-Iure-Gemini` e chiedi all'assistente di leggerlo (es. «leggi Sentenze_responsabilita.doc e confrontalo con l'art. 2043 c.c.»). In alternativa usa direttamente lo strumento `cerca_per_articolo` o `cerca_sentenze`, che fa la stessa ricerca dell'app.
+4. Per spostare una raccolta su un altro dispositivo (per esempio sull'iPhone, dove la ricerca diretta non è possibile) usa invece **«Esporta per altro dispositivo»**, che crea un file `.iniure.json`, e sull'altro dispositivo **«Importa raccolta»**.
+
+**Da verificare:** non ho provato il caricamento del file `.doc` su Drive e NotebookLM, né la lettura del file da parte di Antigravity (manca ancora il primo accesso). Ricorda che i testi di SentenzeWeb sono per uso personale: non condividere il taccuino né i file esportati.
 
 ---
 
@@ -238,6 +248,7 @@ Quando sono io (Claude) a modificare atti o quiz dell'app, a fine lavoro rilanci
 8. **L'aggiornamento automatico della copia sul PC personale** dipende dall'attivazione di GitHub, ancora in sospeso.
 9. **Mai provato su Normattiva reale:** il nuovo `AGGIORNA_NORMATIVA` (funzionamento senza GitHub, ripristino in caso di rifiuto, riallineamento di NotebookLM) l'ho provato con uno scaricamento simulato, non con quello vero. Rifiuto e conferma si comportano correttamente e i file dell'app sono rimasti identici alle impronte ufficiali.
 10. **Aggiornamento lanciato da GitHub:** dopo l'attivazione resterà possibile lanciare l'aggiornamento anche dal sito di GitHub ("Run workflow"). In quel caso NotebookLM e il PC si riallineano solo al successivo `AGGIORNA_NORMATIVA` lanciato dal PC. Il percorso normale, dal PC, li aggiorna subito.
+11. **Esportazione Word delle sentenze salvate (11/11/2026):** il passaggio verso NotebookLM (Drive + Google Documenti) e Antigravity (file nella cartella `In-Iure-Gemini`) non è stato provato.
 
 ## F. File creati o modificati
 | File | Cosa fa |

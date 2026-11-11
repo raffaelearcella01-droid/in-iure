@@ -57,6 +57,28 @@ function testoInQuery(testo) {
   return unite.join(" ");
 }
 
+/* Ricerca per articolo: le forme di citazione e la costruzione della query sono quelle della sezione Ricerca
+ * dell'app (In-Iure/js/ricerca.js), lette da li' a ogni avvio: un solo elenco da mantenere, risultati identici. */
+const fs = require("fs");
+const path = require("path");
+const vm = require("vm");
+const JS_DIR = process.env.IN_IURE_JS || path.resolve(__dirname, "..", "In-Iure", "js");
+let articoli = null;   // { articoloInQuery, codici: [{id, nome, abbr}] }
+function caricaArticoli() {
+  if (articoli) return articoli;
+  const src = fs.readFileSync(path.join(JS_DIR, "ricerca.js"), "utf8");
+  const i = src.indexOf("var FORME = {"), j = src.indexOf("function filtri(f)");
+  if (i < 0 || j < i) throw new Error("ricerca.js: forme di citazione non trovate");
+  const ctx = vm.createContext({ A: {} });
+  ctx.window = ctx;
+  vm.runInContext(fs.readFileSync(path.join(JS_DIR, "codici-index.js"), "utf8"), ctx);
+  ctx.A.CODICI_INDEX = ctx.CODICI_INDEX || [];
+  vm.runInContext(src.slice(i, j) + "\nthis.articoloInQuery = articoloInQuery;", ctx);
+  const codici = ctx.A.CODICI_INDEX.filter(c => ctx.articoloInQuery(c.id, "1")).map(c => ({ id: c.id, nome: c.nome, abbr: c.abbr }));
+  articoli = { articoloInQuery: ctx.articoloInQuery, codici };
+  return articoli;
+}
+
 const ARCHIVI = { civile: "snciv", penale: "snpen" };
 const data = s => (s && s.length === 8) ? s.slice(6, 8) + "/" + s.slice(4, 6) + "/" + s.slice(0, 4) : (s || "");
 const primo = v => Array.isArray(v) ? v[0] : v;
@@ -114,6 +136,26 @@ const STRUMENTI = [
     },
   },
   {
+    name: "cerca_per_articolo",
+    description: "Cerca su SentenzeWeb i provvedimenti della Cassazione che citano un articolo di un codice o di una legge, unendo in una sola ricerca tutte le forme di citazione (es. \"art. 2043 c.c.\", \"art. 2043 cod. civ.\", \"articolo 2043 del codice civile\", \"2043 c.c.\"). E' la stessa ricerca della sezione Ricerca dell'app In Iure. Il campo codice e' l'id dell'atto (vedi l'elenco nell'enum; l'id e' lo stesso usato dal server in-iure).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        codice: { type: "string", description: "id dell'atto, es. codice-civile, cpc, codice-penale, cpp, costituzione" },
+        articolo: { type: "string", description: "numero dell'articolo, es. 2043, 360, 171-ter, 614-bis" },
+        archivio: { type: "string", enum: ["civile", "penale", "entrambi"], description: "default: entrambi" },
+        anno_da: { type: "integer", description: "facoltativo: anno minimo del provvedimento" },
+        anno_a: { type: "integer", description: "facoltativo: anno massimo" },
+        sezione: { type: "string", description: "facoltativo: 1, 2, 3, 4, 5, 6, 7, L (lavoro) o U (Sezioni unite)" },
+        tipo: { type: "string", enum: ["Sentenza", "Ordinanza", "Ordinanza Interlocutoria", "Decreto"], description: "facoltativo" },
+        ordine: { type: "string", enum: ["rilevanza", "recenti"], description: "default: rilevanza" },
+        max_risultati: { type: "integer", description: "default 10, max 20" },
+        pagina: { type: "integer", description: "default 1" },
+      },
+      required: ["codice", "articolo"], additionalProperties: false,
+    },
+  },
+  {
     name: "cerca_per_estremi",
     description: "Trova su SentenzeWeb un provvedimento della Cassazione dati numero e anno (es. numero 26805, anno 2025).",
     inputSchema: {
@@ -152,21 +194,40 @@ function formattaElenco(j, intest) {
   }).join("\n");
 }
 
+// elenco degli id ammessi per cerca_per_articolo (dall'indice dei codici dell'app)
+try {
+  const s = STRUMENTI.find(x => x.name === "cerca_per_articolo");
+  s.inputSchema.properties.codice.enum = caricaArticoli().codici.map(c => c.id);
+} catch (e) { /* ricerca.js non disponibile: lo strumento rispondera' con l'errore */ }
+
+async function elenco(q, a, cosa) {
+  const max = Math.min(Math.max(parseInt(a.max_risultati || 10, 10) || 10, 1), 20);
+  const pag = Math.max(parseInt(a.pagina || 1, 10) || 1, 1);
+  const p = {
+    q: "ocr:(" + q + ")", fq: filtri(a), rows: max, start: (pag - 1) * max, fl: FL,
+    hl: "true", "hl.fl": "ocr", "hl.snippets": 2, "hl.fragsize": 220,
+  };
+  if ((a.ordine || "rilevanza") === "recenti") p.sort = "pd desc,datdec desc";
+  const j = await solr(p, CACHE_RICERCHE_MS);
+  const tot = j.response.numFound;
+  return formattaElenco(j, tot + " provvedimenti " + cosa + "trovati su SentenzeWeb (pagina " + pag + ", " + max + " per pagina)" +
+    (tot > pag * max ? "; per altri risultati usa pagina=" + (pag + 1) + " o restringi la ricerca" : "") + ".");
+}
+
 const GESTORI = {
+  async cerca_per_articolo(a) {
+    const { articoloInQuery, codici } = caricaArticoli();
+    const c = codici.find(x => x.id === String(a.codice || "").trim());
+    if (!c) return "Codice non riconosciuto. Id ammessi: " + codici.map(x => x.id + " (" + x.abbr + ")").join(", ") + ".";
+    const q = articoloInQuery(c.id, a.articolo);
+    if (!q) return "Numero di articolo non valido (esempi: 2043, 171-ter, 614-bis).";
+    return elenco(q, a, "che citano l'art. " + String(a.articolo).trim() + " " + c.abbr + " (tutte le forme di citazione) ");
+  },
+
   async cerca_sentenze(a) {
     const q = testoInQuery(a.testo);
     if (!q) return "Indica almeno una parola chiave.";
-    const max = Math.min(Math.max(parseInt(a.max_risultati || 10, 10) || 10, 1), 20);
-    const pag = Math.max(parseInt(a.pagina || 1, 10) || 1, 1);
-    const p = {
-      q: "ocr:(" + q + ")", fq: filtri(a), rows: max, start: (pag - 1) * max, fl: FL,
-      hl: "true", "hl.fl": "ocr", "hl.snippets": 2, "hl.fragsize": 220,
-    };
-    if ((a.ordine || "rilevanza") === "recenti") p.sort = "pd desc,datdec desc";
-    const j = await solr(p, CACHE_RICERCHE_MS);
-    const tot = j.response.numFound;
-    return formattaElenco(j, tot + " provvedimenti trovati su SentenzeWeb (pagina " + pag + ", " + max + " per pagina)" +
-      (tot > pag * max ? "; per altri risultati usa pagina=" + (pag + 1) + " o restringi la ricerca" : "") + ".");
+    return elenco(q, a, "");
   },
 
   async cerca_per_estremi(a) {
@@ -206,4 +267,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { GESTORI, STRUMENTI, testoInQuery, estremi };
+module.exports = { GESTORI, STRUMENTI, testoInQuery, estremi, caricaArticoli };

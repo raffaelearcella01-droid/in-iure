@@ -88,6 +88,15 @@ function copiaDir(da, a) {
   const sw = require("./sentenzeweb");
   verifica(sw.testoInQuery('"lastrico solare" infiltr* OR umidita') === '"lastrico solare" AND infiltr* OR umidita', "SentenzeWeb: costruzione della query");
   verifica(sw.testoInQuery("a:b (c)") === "a AND b AND c", "SentenzeWeb: caratteri speciali neutralizzati");
+  const art = sw.caricaArticoli();
+  const q2043 = art.articoloInQuery("codice-civile", "2043");
+  verifica(/"art\. 2043 c\.c\."~3/.test(q2043) && /"art\. 2043 cod\. civ\."~3/.test(q2043) && /"2043 c\.c\."~1/.test(q2043) && /"art\. 2043 del codice civile"~2/.test(q2043),
+    "SentenzeWeb: art. 2043 c.c. unisce le forme di citazione (lette da ricerca.js dell'app)");
+  verifica(/"art\. 171 ter c\.p\.c\."~3/.test(art.articoloInQuery("cpc", "171-ter")), "SentenzeWeb: articolo con suffisso (171-ter c.p.c.)");
+  verifica(art.articoloInQuery("codice-civile", "abc") === "", "SentenzeWeb: numero di articolo non valido rifiutato");
+  const enumCod = sw.STRUMENTI.find(x => x.name === "cerca_per_articolo").inputSchema.properties.codice.enum || [];
+  verifica(["codice-civile", "cpc", "codice-penale", "cpp", "costituzione"].every(x => enumCod.includes(x)), "SentenzeWeb: cerca_per_articolo elenca i codici principali (" + enumCod.length + " atti)");
+  verifica(/Codice non riconosciuto/.test(await sw.GESTORI.cerca_per_articolo({ codice: "inesistente", articolo: "1" })), "SentenzeWeb: codice sconosciuto rifiutato senza contattare il sito");
   fs.rmSync(dati, { recursive: true, force: true });
 
   console.log("\n" + ok + "/" + (ok + ko) + " verifiche superate");

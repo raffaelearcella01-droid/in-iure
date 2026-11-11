@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  In Iure - configurazione di rete.
+  Il sito pubblico SentenzeWeb (www.italgiure.giustizia.it) invia una catena di
+  certificati incompleta (manca l'intermedio "TI Trust Technologies OV CA"):
+  senza questo file Android rifiuta la connessione. Per QUEL SOLO dominio si
+  aggiunge l'intermedio ufficiale ai certificati di sistema; tutto il resto resta
+  com'e' (solo HTTPS, solo certificati di sistema).
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="false">www.italgiure.giustizia.it</domain>
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="@raw/titrust_ov_ca" />
+        </trust-anchors>
+    </domain-config>
+</network-security-config>
