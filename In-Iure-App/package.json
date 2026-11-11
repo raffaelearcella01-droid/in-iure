@@ -1,6 +1,6 @@
 {
   "name": "in-iure-app",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "private": true,
   "description": "App nativa Android di In Iure (Capacitor; iPhone usa la versione web da GitHub Pages) - impacchetta la web-app ../In-Iure",
   "scripts": {
