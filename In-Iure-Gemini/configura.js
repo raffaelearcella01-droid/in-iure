@@ -13,8 +13,15 @@ const os = require("os");
 const path = require("path");
 
 const slash = p => p.split(path.sep).join("/");
+// cartella della pratica (APRI_PRATICA_IN_IURE.bat): l'unica cartella di documenti che l'assistente puo' usare
+const iP = process.argv.indexOf("--pratica");
+let PRATICA = iP > 0 ? String(process.argv[iP + 1] || "").replace(/^"|"$/g, "").replace(/[\\/]+$/, "") : "";
+if (PRATICA) {
+  if (!fs.existsSync(PRATICA) || !fs.statSync(PRATICA).isDirectory()) { console.error("Cartella della pratica non trovata: " + PRATICA); process.exit(1); }
+  PRATICA = fs.realpathSync(PRATICA);
+}
 const MCP = path.resolve(__dirname, "..", "In-Iure-MCP");
-for (const f of ["server.js", "sentenzeweb.js", "limita-mcp.js"])
+for (const f of ["server.js", "sentenzeweb.js", "limita-mcp.js", "pratica.js"])
   if (!fs.existsSync(path.join(MCP, f))) { console.error("File mancante: " + path.join(MCP, f)); process.exit(1); }
 
 const f = path.join(__dirname, ".gemini", "settings.json");
@@ -29,6 +36,11 @@ s.mcpServers["in-iure"] = {
 s.mcpServers.sentenzeweb = {
   command: "node", args: [slash(path.join(MCP, "sentenzeweb.js"))], trust: true, timeout: 120000,
   description: "SentenzeWeb (Corte di cassazione, Ministero della Giustizia): provvedimenti civili e penali degli ultimi 5 anni",
+};
+
+s.mcpServers.pratica = {
+  command: "node", args: [slash(path.join(MCP, "pratica.js"))].concat(PRATICA ? ["--cartella", slash(PRATICA)] : []), trust: true, timeout: 120000,
+  description: "Documenti della pratica aperta (una sola cartella) e salvataggio di pareri e atti in Word",
 };
 
 const avvisi = [];
@@ -69,5 +81,33 @@ const hooks = {
 };
 fs.writeFileSync(path.join(agents, "hooks.json"), JSON.stringify(hooks, null, 2) + "\n");
 
+/* Regola della pratica: indica all'assistente la cartella aperta (o che nessuna pratica e' aperta). */
+const regole = path.join(agents, "rules");
+fs.mkdirSync(regole, { recursive: true });
+fs.writeFileSync(path.join(regole, "pratica.md"), "---\ntrigger: always_on\n---\n" + (PRATICA
+  ? "# Pratica aperta\nL'utente ha aperto la pratica nella cartella `" + slash(PRATICA) + "`. I documenti di questa cartella (strumenti `elenca_documenti`, `leggi_documento`, `cerca_nei_documenti` del server `pratica`) sono l'UNICA fonte dei fatti della pratica: non usare documenti di altre cartelle e non supporre fatti che non risultano da essi o dalle parole dell'utente. All'inizio di ogni richiesta che riguarda la pratica chiama `elenca_documenti`.\n"
+  : "# Nessuna pratica aperta\nL'assistente e' stato avviato senza una cartella di documenti. Se l'utente chiede di lavorare su documenti, spiegagli di chiudere e usare APRI_PRATICA_IN_IURE.bat (doppio clic, oppure trascinando la cartella sull'icona).\n"));
+
+/* Skill: quelle di In Iure (in git, cartella skill/) e quelle dello studio adattate (skill-studio/, fuori da git),
+ * copiate in .agents/skills dove Antigravity le cerca. */
+const dirSkill = path.join(agents, "skills");
+let nSkill = 0;
+function copiaDir(da, a) {
+  fs.mkdirSync(a, { recursive: true });
+  for (const v of fs.readdirSync(da, { withFileTypes: true })) {
+    const x = path.join(da, v.name), y = path.join(a, v.name);
+    if (v.isDirectory()) copiaDir(x, y); else fs.copyFileSync(x, y);
+  }
+}
+try { require("./importa_skill_studio").importa(); } catch (e) { avvisi.push("skill dello studio non aggiornate: " + e.message); }
+fs.rmSync(dirSkill, { recursive: true, force: true });
+for (const sorg of [path.join(__dirname, "skill-studio"), path.join(__dirname, "skill")]) {
+  if (!fs.existsSync(sorg)) continue;
+  for (const d of fs.readdirSync(sorg, { withFileTypes: true }))
+    if (d.isDirectory() && fs.existsSync(path.join(sorg, d.name, "SKILL.md"))) { copiaDir(path.join(sorg, d.name), path.join(dirSkill, d.name)); nSkill++; }
+}
+
+console.log(PRATICA ? "Pratica aperta: " + PRATICA : "Nessuna pratica aperta (per lavorare sui documenti usa APRI_PRATICA_IN_IURE.bat)");
+console.log("Skill disponibili: " + nSkill);
 console.log("Fonti collegate all'assistente: " + Object.keys(s.mcpServers).join(", "));
 for (const a of avvisi) console.log("Avviso: " + a);

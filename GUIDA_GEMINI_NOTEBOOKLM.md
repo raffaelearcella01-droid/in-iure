@@ -161,6 +161,35 @@ Dalla volta successiva basta il punto 1: l'accesso resta memorizzato in Gestione
 - **Norme e atti dell'app:** in automatico, senza alcun passaggio. Il server legge i file di `In-Iure/js` e a ogni domanda controlla se sono cambiati. Quando confermi un aggiornamento della normativa (parte D), Gemini usa subito i testi nuovi, anche con una finestra già aperta. Se invece rifiuti l'aggiornamento, i file tornano come prima e Gemini continua a usare i testi precedenti.
 - **Normattiva e SentenzeWeb:** sono online, quindi sono sempre i dati del giorno, salvo le risposte già in cache: 24 ore per le ricerche.
 
+### Pareri, atti e pratiche (dall'11/11/2026)
+L'assistente lavora come un avvocato: dà **pareri**, scrive **qualsiasi atto** a partire dalla tua richiesta e può lavorare su **una pratica**, cioè sui documenti di una cartella, usando solo quelli come fonte dei fatti. È come aprire Claude nel terminale dentro una cartella.
+- **Aprire una pratica:** fai doppio clic su **`APRI_PRATICA_IN_IURE.bat`** e scegli la cartella, oppure trascina la cartella della pratica sull'icona.
+  - L'assistente legge PDF con testo, Word (.docx), .odt, .txt, .rtf ed e-mail .eml, comprese le sottocartelle. Cerca nei documenti e cita documento e pagina.
+  - Non legge file fuori da quella cartella.
+  - I PDF scansionati senza testo vanno prima resi ricercabili (OCR). I vecchi .doc vanno salvati come .docx o .pdf.
+- **Senza pratica:** `AVVIA_GEMINI_IN_IURE.bat` funziona come prima (norme, modelli, sentenze), ma non può salvare file.
+- **Cosa chiedere:**
+  - «dammi un parere sulla responsabilità del condominio in base ai documenti»;
+  - «scrivi la comparsa di costituzione»;
+  - «prepara una diffida ad adempiere»;
+  - «quali termini scadono?».
+- **Dove finiscono pareri e atti:** in Word, nella sottocartella **`In Iure - elaborati`** della pratica. Non sovrascrive mai un file esistente. Il formato è Times New Roman 12, interlinea 1,5, testo giustificato, con i numeri di pagina. I dati mancanti sono segnati con `[DA COMPLETARE: ...]`. **Rileggi sempre** prima di usare un atto.
+- **Metodo:** l'assistente usa le skill dello studio (parere-legale, atto-di-citazione-DM110_23, comparsa-costituzione, atto-di-appello, memorie-171ter, ricorso-semplificato, precetto-aggiornato, stile-forense e altre: 32 in tutto), adattate alle fonti di In Iure, più due skill di In Iure (`redazione-atto` per qualsiasi atto e `lavoro-sulla-pratica`).
+  - Le skill dello studio si copiano da sole da `%USERPROFILE%\.claude\skills` a ogni avvio, nella cartella `In-Iure-Gemini/skill-studio`.
+  - Quella cartella **non va su GitHub**, perché il repository di In Iure è pubblico, ma viaggia con Google Drive.
+- **Limiti:**
+  - le sentenze vengono solo da SentenzeWeb (Cassazione, ultimi 5 anni circa);
+  - niente banche dati di merito, niente carta intestata e niente calcoli automatici: i calcoli sono scritti per esteso e vanno controllati.
+
+**Taccuino NotebookLM per una pratica.** NotebookLM risponde solo sulle fonti del taccuino, quindi:
+1. crea un taccuino per ogni pratica;
+2. aggiungi le fonti In Iure (le 29 dalla cartella Drive "In Iure - fonti NotebookLM", o solo quelle che servono, perché il piano gratuito ammette fino a 50 fonti);
+3. carica i documenti della pratica («Aggiungi fonte» > «Carica»);
+4. se servono, aggiungi le raccolte di sentenze esportate dall'app;
+5. in «Configura chat» incolla il testo di **`ISTRUZIONI_CHAT_NOTEBOOKLM.md`**.
+
+NotebookLM non fa ricerche esterne e non salva file Word: per atti da depositare è più adatto Antigravity.
+
 ### Usare con NotebookLM e Antigravity le sentenze salvate nell'app
 Le raccolte della sezione **Salvate** restano solo sul telefono o sul PC dove le hai create: né NotebookLM né Antigravity possono leggerle da lì. Per usarle si esportano.
 1. Nell'app apri **Salvate**, scegli la raccolta e premi **«Esporta Word (NotebookLM / Antigravity)»**. Ottieni il file `Sentenze_<nome raccolta>.doc`: per ogni sentenza ci sono gli estremi, il link al PDF ufficiale, la tua nota e il testo integrale (se l'hai aperta o salvata con il collegamento attivo).
@@ -249,6 +278,7 @@ Quando sono io (Claude) a modificare atti o quiz dell'app, a fine lavoro rilanci
 9. **Mai provato su Normattiva reale:** il nuovo `AGGIORNA_NORMATIVA` (funzionamento senza GitHub, ripristino in caso di rifiuto, riallineamento di NotebookLM) l'ho provato con uno scaricamento simulato, non con quello vero. Rifiuto e conferma si comportano correttamente e i file dell'app sono rimasti identici alle impronte ufficiali.
 10. **Aggiornamento lanciato da GitHub:** dopo l'attivazione resterà possibile lanciare l'aggiornamento anche dal sito di GitHub ("Run workflow"). In quel caso NotebookLM e il PC si riallineano solo al successivo `AGGIORNA_NORMATIVA` lanciato dal PC. Il percorso normale, dal PC, li aggiorna subito.
 11. **Esportazione Word delle sentenze salvate (11/11/2026):** il passaggio verso NotebookLM (Drive + Google Documenti) e Antigravity (file nella cartella `In-Iure-Gemini`) non è stato provato.
+12. **Pratiche, pareri e atti (11/11/2026):** il server `pratica` è provato (19 verifiche: lettura di PDF con le pagine, Word, ricerca, rifiuto dei file fuori dalla cartella, salvataggio Word aperto davvero con Microsoft Word). **Non ancora provato con Antigravity vero**, perché manca il primo accesso: restano da verificare il caricamento delle skill e delle regole e una prova completa di parere e atto. Va verificato anche che `agy` accetti l'opzione `--settings`, usata da `AVVIA_GEMINI_IN_IURE.bat`, che la documentazione ufficiale non elenca. Il taccuino NotebookLM per una pratica e le istruzioni della chat non sono provati (serve il tuo account). Non so il limite di lunghezza di «Configura chat»: per questo c'è anche la versione breve.
 
 ## F. File creati o modificati
 | File | Cosa fa |
