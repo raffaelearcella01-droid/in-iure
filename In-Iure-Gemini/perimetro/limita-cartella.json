@@ -1,0 +1,11 @@
+{
+  "_nota": "Configurazione dell'hook globale limita-cartella.js. cartelleExtra: cartelle leggibili in ogni sessione oltre a quella di lavoro. cartelleStrumenti: cartelle di programmi che i comandi possono nominare (non documenti). dominiGiuridici: gli UNICI siti web consultabili: normativa SOLO da Normattiva, giurisprudenza SOLO dai siti ufficiali del Ministero della Giustizia (giustizia.it, compresi italgiure.giustizia.it e SentenzeWeb). Scelta dell'utente del 20/11/2026.",
+  "cartelleExtra": [],
+  "cartelleStrumenti": [
+    "~/Documents/MCP"
+  ],
+  "dominiGiuridici": [
+    "normattiva.it",
+    "giustizia.it"
+  ]
+}

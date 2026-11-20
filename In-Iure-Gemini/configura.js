@@ -110,6 +110,13 @@ for (const sorg of [path.join(__dirname, "skill")]) {
     if (d.isDirectory() && fs.existsSync(path.join(sorg, d.name, "SKILL.md"))) { copiaDir(path.join(sorg, d.name), path.join(dirSkill, d.name)); nSkill++; }
 }
 
+/* Perimetro GLOBALE di Antigravity (hook limita-cartella in ~/.gemini/config): installato o aggiornato a ogni avvio,
+ * cosi' vale su ogni PC che usa In Iure, anche quando agy viene avviato da un'altra cartella (20/11/2026). */
+try {
+  const fatto = require("./perimetro/installa.js").installa(os.homedir());
+  console.log("Perimetro di Antigravity: " + (fatto.length ? "aggiornato (" + fatto.join(", ") + ")" : "attivo"));
+} catch (e) { avvisi.push("perimetro globale di Antigravity NON installato: " + e.message); }
+
 console.log(PRATICA ? "Pratica aperta: " + PRATICA : "Nessuna pratica aperta (per lavorare sui documenti usa APRI_PRATICA_IN_IURE.bat)");
 console.log("Skill disponibili: " + nSkill);
 console.log("Fonti collegate all'assistente: " + Object.keys(s.mcpServers).join(", "));

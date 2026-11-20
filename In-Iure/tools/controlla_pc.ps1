@@ -58,6 +58,13 @@ Esito ([bool]$py) ("Python: " + $(if ($py) { (& python --version 2>&1) } else { 
 $agy = Get-Command agy -ErrorAction SilentlyContinue
 if (-not $agy -and (Test-Path "$env:LOCALAPPDATA\agy\bin\agy.exe")) { $agy = "$env:LOCALAPPDATA\agy\bin\agy.exe" }
 Esito ([bool]$agy) ("Antigravity CLI (agy): " + $(if ($agy) { "installato" } else { "non installato (irm https://antigravity.google/cli/install.ps1 | iex)" }))
+# Perimetro globale di agy (hook limita-cartella, 20/11/2026): se agy c'e', lo installa o aggiorna su questo PC
+if ($agy -and $node) {
+    $perim = Join-Path $PSScriptRoot "..\..\In-Iure-Gemini\perimetro\installa.js"
+    $esitoPerim = (& node $perim) -join " "
+    $okPerim = ($LASTEXITCODE -eq 0) -and (Test-Path "$env:USERPROFILE\.gemini\config\hooks\limita-cartella.js")
+    Esito $okPerim ("Antigravity, perimetro globale (solo cartella della pratica): " + $esitoPerim)
+}
 $cc = Get-Command claude -ErrorAction SilentlyContinue
 Esito ([bool]$cc) ("Claude Code (serve alla revisione automatica di quiz e atti): " + $(if ($cc) { "installato" } else { "non installato" }))
 
