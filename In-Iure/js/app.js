@@ -1522,26 +1522,13 @@
   document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeAllModals(); });
   // Impostazioni (20/11/2026): non piu' in fondo a Preferiti, ma in una finestra aperta dall'ingranaggio in alto a destra
   $("#impostazioni-btn").addEventListener("click", function () { closeAllModals(); applySettings(); renderInfoNormativa(); $("#impostazioni-modal").hidden = false; });
-  // Indicatore dell'ultimo aggiornamento della normativa (20/11/2026): date dei codici di questo dispositivo
-  // (anche quelli scaricati con l'aggiornamento automatico) e ultimo controllo di novita'.
+  // "Ultimo aggiornamento" in piccolo in fondo alle Impostazioni (20/11/2026): data dei testi della normativa presenti su
+  // questo dispositivo (verifica su Normattiva); cambia da sola quando l'app riceve l'aggiornamento automatico.
   function renderInfoNormativa() {
     var box = $("#impostazioni-normativa"); if (!box) return;
-    var verif = "", agg = "", nomi = [];
-    (CODICI_INDEX || []).forEach(function (c) {
-      if (c.verificato && c.verificato > verif) verif = c.verificato;
-      if (c.aggiornato && c.aggiornato > agg) { agg = c.aggiornato; nomi = [c.nome]; }
-      else if (c.aggiornato && c.aggiornato === agg) nomi.push(c.nome);
-    });
-    var righe = [];
-    righe.push(verif ? "Ultimo aggiornamento: <strong>" + esc(fmtDate(verif)) + "</strong> (testi verificati su Normattiva)" : "Data dell'ultimo aggiornamento non disponibile");
-    if (agg) righe.push("Ultima modifica di legge recepita: in vigore dal <strong>" + esc(fmtDate(agg)) + "</strong> (" +
-      esc(nomi.slice(0, 3).join(", ") + (nomi.length > 3 ? " e altri " + (nomi.length - 3) : "")) + ")");
-    if (Upd.enabled) {
-      var t = store.get("upd_ultimo_controllo", 0);
-      righe.push(t ? "Ultimo controllo di novita' su questo dispositivo: " + esc(new Date(t).toLocaleString("it-IT", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }))
-        : "Controllo di novita': all'apertura dell'app, quando c'e' connessione");
-    }
-    box.innerHTML = righe.map(function (r) { return "<p>" + r + "</p>"; }).join("");
+    var verif = "";
+    (CODICI_INDEX || []).forEach(function (c) { if (c.verificato && c.verificato > verif) verif = c.verificato; });
+    box.textContent = verif ? "Ultimo aggiornamento: " + fmtDate(verif) : "";
   }
 
   // Avvio quiz dalla finestra di scelta

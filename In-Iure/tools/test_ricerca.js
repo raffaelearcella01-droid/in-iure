@@ -61,11 +61,12 @@ const until = async (f, ms = 8000) => { const t0 = Date.now(); while (!f() && Da
   ok($("#impostazioni-modal").hidden, "finestra Impostazioni chiusa all'avvio");
   click($("#impostazioni-btn"));
   ok(!$("#impostazioni-modal").hidden, "il tasto con l'ingranaggio apre le Impostazioni");
-  const idx = w.eval("CODICI_INDEX"), maxV = idx.map(c => c.verificato || "").sort().pop(), maxA = idx.map(c => c.aggiornato || "").sort().pop();
+  const idx = w.eval("CODICI_INDEX"), maxV = idx.map(c => c.verificato || "").sort().pop();
   const it = d => d.slice(8, 10) + "/" + d.slice(5, 7) + "/" + d.slice(0, 4);
-  const infoN = $("#impostazioni-normativa").textContent;
-  ok(infoN.indexOf("Ultimo aggiornamento: " + it(maxV)) >= 0 && infoN.indexOf("in vigore dal " + it(maxA)) >= 0,
-    "indicatore dell'ultimo aggiornamento della normativa (" + infoN.replace(/\s+/g, " ").trim().slice(0, 140) + ")");
+  const infoN = $("#impostazioni-normativa");
+  const box = $("#impostazioni-modal .modal__box");
+  ok(infoN.textContent === "Ultimo aggiornamento: " + it(maxV) && box.lastElementChild === infoN && !/Normativa|recepita|controllo/.test(box.textContent),
+    "solo \"Ultimo aggiornamento\" in fondo alle Impostazioni (" + infoN.textContent + ")");
   click($('#impostazioni-modal [data-tema="scuro"]'));
   ok(w.document.documentElement.getAttribute("data-theme") === "dark" && $('#impostazioni-modal [data-tema="scuro"]').classList.contains("is-active"), "dalla finestra il tema cambia davvero");
   click($('#impostazioni-modal [data-tema="auto"]'));
