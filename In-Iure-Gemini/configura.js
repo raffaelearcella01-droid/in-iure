@@ -85,6 +85,10 @@ const hooks = {
 };
 fs.writeFileSync(path.join(agents, "hooks.json"), JSON.stringify(hooks, null, 2) + "\n");
 
+/* Pratica scelta nel lanciatore, per il server "pratica" GLOBALE (~/.gemini/config/mcp_config.json, --cartella-avvio):
+ * Antigravity usa quello al posto del server della cartella, quindi la scelta passa da questo file (vuoto = nessuna). */
+fs.writeFileSync(path.join(agents, "pratica-corrente.txt"), PRATICA ? PRATICA + "\n" : "");
+
 /* Regola della pratica: indica all'assistente la cartella aperta (o che nessuna pratica e' aperta). */
 const regole = path.join(agents, "rules");
 fs.mkdirSync(regole, { recursive: true });

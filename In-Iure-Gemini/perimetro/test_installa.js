@@ -60,6 +60,29 @@ ok(prova({ name: "read_file", args: { path: path.join(pratica, "atto.pdf") } }).
 ok(prova({ name: "read_file", args: { path: path.join(h, "altro.pdf") } }).decision === "deny", "hook installato: lettura fuori dalla pratica negata");
 ok(prova({ name: "read_url_content", args: { url: "https://www.normattiva.it/x" } }).decision === "ask", "hook installato: Normattiva ammessa (con conferma)");
 ok(prova({ name: "read_url_content", args: { url: "https://www.example.com/" } }).decision === "deny", "hook installato: altri siti negati");
+// 20/11/2026 sera: semplice "agy" = stesse regole dell'assistente In Iure (formato reale di agy 1.5.11 per le fonti)
+const mcpCall = srv => prova({ name: "call_mcp_tool", args: { Arguments: {}, ServerName: srv, ToolName: "x" } }).decision;
+ok(["normattiva", "sentenzeweb", "in-iure", "pratica"].every(s => mcpCall(s) === "allow"), "fonti ammesse: normattiva, sentenzeweb, in-iure, pratica");
+ok(mcpCall("onelegale") === "deny" && mcpCall("dirittopratico") === "deny" && mcpCall("") === "deny", "ogni altra fonte MCP negata");
+ok(prova({ name: "search_web", args: { query: "art 2043" } }).decision === "deny", "ricerca web negata");
+ok(prova({ name: "run_command", args: { CommandLine: "dir" } }).decision === "deny", "comandi di sistema negati (anche dentro la pratica)");
+ok(prova({ name: "write_file", args: { path: path.join(pratica, "nota.md") } }).decision === "deny", "scrittura di file negata (si salva solo con salva_documento_word)");
+ok(prova({ name: "generate_image", args: { prompt: "x" } }).decision === "deny", "generazione di immagini negata");
+ok(prova({ name: "read_file", args: { path: path.join(os.homedir(), ".gemini", "antigravity-cli", "mcp", "normattiva", "estrai_articolo.json") } }).decision === "allow",
+  "consentita la lettura delle descrizioni delle fonti (cartella mcp di agy)");
+const cfg5 = path.join(h, ".gemini", "config");
+ok(fs.existsSync(path.join(cfg5, "skills", "parere", "SKILL.md")) && fs.existsSync(path.join(cfg5, "skills", "redazione-atto", "SKILL.md")), "skill di In Iure installate come skill globali");
+ok(/Regola delle fonti/.test(fs.readFileSync(path.join(h, ".gemini", "GEMINI.md"), "utf8")) && /da cui e' stato avviato agy/.test(fs.readFileSync(path.join(h, ".gemini", "GEMINI.md"), "utf8")), "regole dell'assistente In Iure nella regola globale");
+const mc5 = J(path.join(cfg5, "mcp_config.json")).mcpServers;
+ok(mc5.sentenzeweb && mc5["in-iure"] && mc5.pratica && mc5.pratica.args.indexOf("--cartella-avvio") > 0, "fonti globali: sentenzeweb, in-iure, pratica dalla cartella di avvio");
+const st5 = J(path.join(h, ".gemini", "antigravity-cli", "settings.json"));
+ok(["normattiva", "sentenzeweb", "in-iure", "pratica"].every(s => st5.permissions.allow.indexOf("mcp(" + s + "/*)") >= 0), "permessi delle fonti in settings.json");
+// server gia' presenti dell'utente: restano scritti (bloccati dall'hook), i nostri si aggiungono
+const h6 = nuova();
+scrivi(path.join(h6, ".gemini", "config", "mcp_config.json"), JSON.stringify({ mcpServers: { altro: { command: "x" } } }));
+const f6 = installa(h6);
+const mc6 = J(path.join(h6, ".gemini", "config", "mcp_config.json")).mcpServers;
+ok(mc6.altro && mc6.sentenzeweb && f6.some(x => /altro/.test(x)), "mcp_config: server dell'utente conservato e segnalato come bloccato");
 
 // prova della copia di sicurezza: una copia gia' esistente non viene mai sovrascritta
 h = nuova();

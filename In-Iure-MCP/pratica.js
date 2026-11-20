@@ -25,7 +25,31 @@ function argomento(nome) {
   return i > 0 ? process.argv[i + 1] : undefined;
 }
 let RADICE = argomento("--cartella") || process.env.IN_IURE_PRATICA || "";
+/* --cartella-avvio (configurazione GLOBALE di Antigravity, 20/11/2026): la pratica e' la cartella da cui l'utente ha
+ * lanciato "agy" (Antigravity avvia i server MCP da li': verificato con agy 1.5.11). Non valgono come pratica la radice
+ * di un disco, la cartella utente e la cartella In-Iure-Gemini (avvio senza pratica). */
+let AVVISO_AVVIO = "";
+if (!RADICE && process.argv.includes("--cartella-avvio")) {
+  let c = ""; try { c = fs.realpathSync(process.cwd()); } catch (e) { c = ""; }
+  const os = require("os");
+  let home = os.homedir(); try { home = fs.realpathSync(home); } catch (e) { /* invariato */ }
+  const ugualeA = (a, b) => path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase();
+  if (!c) AVVISO_AVVIO = "cartella di avvio non leggibile";
+  else if (path.parse(c).root.toLowerCase() === (c + path.sep).toLowerCase() || ugualeA(c, path.parse(c).root)) AVVISO_AVVIO = "agy e' stato avviato dalla radice di un disco (" + c + ")";
+  else if (ugualeA(c, home)) AVVISO_AVVIO = "agy e' stato avviato dalla cartella utente (" + c + ")";
+  else if (fs.existsSync(path.join(c, "configura.js")) && fs.existsSync(path.join(c, "agy-impostazioni.json"))) {
+    // avvio da In-Iure-Gemini (AVVIA_GEMINI / APRI_PRATICA): la pratica e' quella scelta nel lanciatore, che
+    // configura.js scrive in .agents/pratica-corrente.txt (vuoto = nessuna pratica)
+    let scelta = "";
+    try { scelta = fs.readFileSync(path.join(c, ".agents", "pratica-corrente.txt"), "utf8").trim(); } catch (e) { scelta = ""; }
+    if (scelta && fs.existsSync(scelta) && fs.statSync(scelta).isDirectory()) RADICE = scelta;
+    else AVVISO_AVVIO = "avvio da In-Iure-Gemini senza pratica";
+  }
+  else RADICE = c;
+}
 try { RADICE = RADICE ? fs.realpathSync(RADICE) : ""; } catch (e) { RADICE = ""; }
+const MSG_NESSUNA = () => "Nessuna pratica aperta" + (AVVISO_AVVIO ? " (" + AVVISO_AVVIO + ")" : "") +
+  ": chiedi all'utente di aprire il terminale nella cartella della pratica e scrivere agy (oppure di usare APRI_PRATICA_IN_IURE.bat).";
 
 /* ---------------------------------------------------------------- percorsi sicuri */
 function dentro(p) {
@@ -33,7 +57,7 @@ function dentro(p) {
   return rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel));
 }
 function risolvi(nome) {
-  if (!RADICE) throw new Error("Nessuna pratica aperta: avvia l'assistente con APRI_PRATICA_IN_IURE.bat scegliendo la cartella.");
+  if (!RADICE) throw new Error(MSG_NESSUNA());
   const n = String(nome || "").replace(/\\/g, "/").replace(/^\/+/, "");
   if (!n) throw new Error("Indica il nome del documento, come restituito da elenca_documenti.");
   const p = path.resolve(RADICE, n);
@@ -311,7 +335,7 @@ function testiPratica() {
 
 const GESTORI = {
   elenca_documenti() {
-    if (!RADICE) return "Nessuna pratica aperta: chiedi all'utente di avviare l'assistente con APRI_PRATICA_IN_IURE.bat scegliendo la cartella della pratica.";
+    if (!RADICE) return MSG_NESSUNA();
     const f = elenco();
     const doc = f.filter(x => !elaborato(x)), el = f.filter(elaborato);
     const riga = x => "- " + x.nome + "  (" + (x.ext.slice(1) || "?") + ", " + Math.max(1, Math.round(x.byte / 1024)) + " KB, " + new Date(x.mtime).toLocaleDateString("it-IT") + ")" + (LEGGIBILI.includes(x.ext) ? "" : "  [non leggibile]");

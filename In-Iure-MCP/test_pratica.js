@@ -125,6 +125,26 @@ function avvia(cartella) {
   verifica(/Nessuna pratica aperta/.test(r2.result.content[0].text), "senza cartella risponde che nessuna pratica e' aperta");
   s2.kill();
 
+  console.log("7) Cartella di avvio (semplice \"agy\", configurazione globale, 20/11/2026)");
+  const elenco = (cwd, extra) => new Promise(res => {
+    const s3 = spawn(process.execPath, [path.join(__dirname, "pratica.js"), "--cartella-avvio"].concat(extra || []), { cwd });
+    let b = "", testo = "";
+    s3.on("exit", () => res(testo));   // si attende la chiusura: la cartella di avvio si puo' poi cancellare
+    s3.stdout.on("data", d => { b += d; if (b.includes("\n") && !testo) { testo = JSON.parse(b.split("\n")[0]).result.content[0].text; s3.kill(); } });
+    s3.stdin.write(JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "elenca_documenti", arguments: {} } }) + "\n");
+  });
+  const t3 = await elenco(pr);
+  verifica(/Pratica:/.test(t3) && /parere|\.(txt|docx|pdf)/i.test(t3) && !/Nessuna pratica/.test(t3), "avviato dalla cartella della pratica: elenca i suoi documenti");
+  verifica(/Nessuna pratica aperta \(agy e' stato avviato dalla cartella utente/.test(await elenco(require("os").homedir())), "avviato dalla cartella utente: nessuna pratica (non tutto il PC)");
+  verifica(/Nessuna pratica aperta \(agy e' stato avviato dalla radice/.test(await elenco(path.parse(pr).root)), "avviato dalla radice del disco: nessuna pratica");
+  const finta = fs.mkdtempSync(path.join(require("os").tmpdir(), "finta-gemini-"));
+  fs.writeFileSync(path.join(finta, "configura.js"), ""); fs.writeFileSync(path.join(finta, "agy-impostazioni.json"), "{}"); fs.mkdirSync(path.join(finta, ".agents"));
+  fs.writeFileSync(path.join(finta, ".agents", "pratica-corrente.txt"), "");
+  verifica(/avvio da In-Iure-Gemini senza pratica/.test(await elenco(finta)), "avviato da In-Iure-Gemini senza pratica scelta: nessuna pratica");
+  fs.writeFileSync(path.join(finta, ".agents", "pratica-corrente.txt"), pr + "\n");
+  verifica(/Pratica:/.test(await elenco(finta)), "avviato da In-Iure-Gemini con la pratica scelta nel lanciatore: usa quella");
+  fs.rmSync(finta, { recursive: true, force: true });
+
   fs.rmSync(DATI, { recursive: true, force: true });
   if (!process.env.IN_IURE_TIENI_PROVA) fs.rmSync(base, { recursive: true, force: true }); else console.log("cartella di prova: " + pr);
   console.log("\n" + ok + "/" + (ok + ko) + " verifiche superate");

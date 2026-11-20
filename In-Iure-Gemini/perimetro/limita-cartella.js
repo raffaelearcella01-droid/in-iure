@@ -3,6 +3,13 @@
  *  - strumenti su file (lettura, elenco, ricerca, scrittura): percorsi solo dentro la cartella di lavoro;
  *  - comandi di sistema: negati se nominano percorsi fuori dalla cartella, "..", la home o variabili di percorso;
  *  - pagine web (read_url, browser): solo i domini di normativa e sentenze elencati in limita-cartella.json.
+ * Dal 20/11/2026 sera (richiesta dell'utente: "scrivendo solo agy deve partire con le regole e le fonti") vale
+ * ovunque la stessa disciplina dell'assistente In Iure:
+ *  - fonti MCP: SOLO i server in "serverAmmessi" (Normattiva, SentenzeWeb del Ministero, l'app In Iure come ausilio,
+ *    i documenti della pratica); ogni altro server e' negato;
+ *  - ricerca web generica e generazione di immagini: negate;
+ *  - comandi di sistema e scrittura di file: negati (si salva solo in Word con salva_documento_word, che controlla le
+ *    citazioni), salvo "consentiComandi" / "consentiScrittura" a true in limita-cartella.json.
  * Collegato da ~/.gemini/config/hooks.json. Configurazione: limita-cartella.json (stessa cartella).
  * Registro delle decisioni: limita-cartella.log (stessa cartella). */
 "use strict";
@@ -16,6 +23,8 @@ let conf = {};
 try { conf = JSON.parse(fs.readFileSync(path.join(__dirname, "limita-cartella.json"), "utf8")); } catch (e) { /* default */ }
 const espandi = p => String(p).replace(/^~(?=[\\/]|$)/, HOME).replace(/%([^%]+)%/g, (m, v) => process.env[v] || m);
 const DOMINI = (conf.dominiGiuridici || []).map(d => String(d).toLowerCase());
+const SERVER = (conf.serverAmmessi || ["normattiva", "sentenzeweb", "in-iure", "pratica"]).map(x => String(x).toLowerCase());
+const FONTI = "fuori dalla cartella puoi usare SOLO la normativa di Normattiva (server normattiva) e la giurisprudenza dei siti ufficiali del Ministero della Giustizia (server sentenzeweb)";
 
 function esci(decisione, motivo, extra) {
   const out = Object.assign({ decision: decisione }, motivo ? { reason: motivo } : {}, extra || {});
@@ -69,9 +78,26 @@ process.stdin.on("end", () => {
   const lettura = lavoro.concat([
     inp.artifactDirectoryPath, inp.conversationId && path.join(AGY, "brain", inp.conversationId),
     path.join(AGY, "builtin"), path.join(HOME, ".gemini", "config", "skills"), path.join(HOME, ".gemini", "config", "plugins"),
+    path.join(AGY, "mcp"),   // descrizioni degli strumenti MCP (agy le legge prima di chiamarli)
   ].concat((conf.cartelleExtra || []).map(espandi)).filter(Boolean).map(p => norm(p)));
   const fuoriMsg = "e' fuori dalla cartella della pratica (" + lavoro.join(", ") + "). Lavora solo sui documenti di questa cartella; " +
     "fuori puoi consultare solo la normativa (Normattiva) e la giurisprudenza (siti ufficiali del Ministero della Giustizia).";
+
+  // 0) fonti MCP: solo i server ammessi. agy 1.5.11 chiama gli strumenti MCP con un nome proprio
+  //    ("mcp_<server>_<strumento>") o con call_mcp_tool e il nome del server negli argomenti.
+  if (/mcp/.test(nome)) {
+    const a = tc.args && typeof tc.args === "object" ? tc.args : {};
+    globalThis.__nome = nome + " " + String(a.ServerName || "") + "/" + String(a.ToolName || "");   // solo i nomi nel registro, mai i testi
+    let srv = "";
+    for (const k of Object.keys(a)) if (/server/i.test(k)) srv = String(valori(a[k], k, [])[0] ? valori(a[k], k, [])[0].valore : "");
+    if (!srv) { const m = /^mcp_?(.+)$/.exec(nome); if (m) srv = (SERVER.filter(x => m[1].indexOf(x.replace(/-/g, "_")) === 0 || m[1].indexOf(x) === 0)[0] || m[1]); }
+    srv = srv.toLowerCase().trim();
+    if (SERVER.indexOf(srv) >= 0) esci("allow");
+    esci("deny", "Fonte non ammessa (" + (srv || nome) + "): " + FONTI + "; per i fatti, solo i documenti della cartella (server pratica).");
+  }
+  if (/search_web|web_search|google|websearch/.test(nome))
+    esci("deny", "Ricerca web disattivata: " + FONTI + ".");
+  if (/generate_image|image_gen/.test(nome)) esci("deny", "Generazione di immagini disattivata in questo assistente giuridico.");
 
   // 1) pagine web e browser: solo domini di normativa e giurisprudenza
   if (/url|browser|fetch/.test(nome)) {
@@ -88,6 +114,7 @@ process.stdin.on("end", () => {
 
   // 2) comandi di sistema: niente percorsi fuori dalla cartella
   if (/command|terminal|shell|exec/.test(nome)) {
+    if (!conf.consentiComandi) esci("deny", "Comandi di sistema disattivati: usa gli strumenti delle fonti (normattiva, sentenzeweb, in-iure) e quelli della pratica (elenca_documenti, leggi_documento, cerca_nei_documenti, salva_documento_word).");
     const cmd = args.map(a => a.valore).join(" \n ");
     if (/(^|[\s"'\\/(])\.\.(?=[\\/\s"')]|$)/.test(cmd)) esci("deny", "Il comando risale alle cartelle superiori (\"..\"), che " + fuoriMsg);
     if (/\$env:|\$home\b|%[a-z_]+%|\[environment\]|getfolderpath|(^|[\s"'])~(?=[\\/\s"']|$)|\\\\[a-z0-9]/i.test(cmd))
@@ -115,6 +142,7 @@ process.stdin.on("end", () => {
     .map(a => a.valore);
   if (!percorsi.length) esci("ask");
   const scrittura = /write|edit|replace|create|delete|move|rename|save/.test(nome);
+  if (scrittura && !conf.consentiScrittura) esci("deny", "Scrittura di file disattivata: pareri e atti si salvano SOLO in Word con salva_documento_word (server pratica), che controlla prima le citazioni.");
   for (const p of percorsi) {
     const n = norm(p, cwd);
     if (!dentro(n, scrittura ? lavoro : lettura)) esci("deny", "Il percorso " + p + " " + fuoriMsg);
