@@ -189,8 +189,8 @@ L'assistente lavora come un avvocato: dà **pareri**, scrive **qualsiasi atto** 
 NotebookLM non fa ricerche esterne e non salva file Word: per atti da depositare è più adatto Antigravity.
 
 ### Usare con NotebookLM e Antigravity le sentenze salvate nell'app
-Le raccolte della sezione **Salvate** restano solo sul telefono o sul PC dove le hai create: né NotebookLM né Antigravity possono leggerle da lì. Per usarle si esportano.
-1. Nell'app apri **Salvate**, scegli la raccolta e premi **«Esporta Word (NotebookLM / Antigravity)»**. Ottieni il file `Sentenze_<nome raccolta>.doc`: per ogni sentenza ci sono gli estremi, il link al PDF ufficiale, la tua nota e il testo integrale (se l'hai aperta o salvata con il collegamento attivo).
+Le raccolte della sezione **Raccolte** (prima chiamata «Salvate») restano solo sul telefono o sul PC dove le hai create: né NotebookLM né Antigravity possono leggerle da lì. Per usarle si esportano.
+1. Nell'app apri **Raccolte**, scegli la raccolta e premi **«Esporta Word (NotebookLM / Antigravity)»**. Ottieni il file `Sentenze_<nome raccolta>.doc`: per ogni sentenza ci sono gli estremi, il link al PDF ufficiale, la tua nota e il testo integrale (se l'hai aperta o salvata con il collegamento attivo).
 2. **NotebookLM:** carica il file su Google Drive e aprilo con Google Documenti (si converte in un documento Google). Poi, nel taccuino, scegli «Aggiungi fonte» > Google Drive e selezionalo. Tienilo separato dalle 29 fonti automatiche dell'app: quelle le aggiorna lo script, questo no.
 3. **Antigravity:** copia il file nella cartella `In-Iure-Gemini` e chiedi all'assistente di leggerlo (es. «leggi Sentenze_responsabilita.doc e confrontalo con l'art. 2043 c.c.»). In alternativa usa direttamente lo strumento `cerca_per_articolo` o `cerca_sentenze`, che fa la stessa ricerca dell'app.
 4. Per spostare una raccolta su un altro dispositivo (per esempio sull'iPhone, dove la ricerca diretta non è possibile) usa invece **«Esporta per altro dispositivo»**, che crea un file `.iniure.json`, e sull'altro dispositivo **«Importa raccolta»**.

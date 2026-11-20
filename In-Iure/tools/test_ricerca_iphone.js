@@ -115,17 +115,18 @@ function eseguiComando() { const u = urlDelComando(); appunti = JSON.stringify(s
   $("#ric-form").dispatchEvent(new w.Event("submit", { bubbles: true, cancelable: true }));
   await until(() => /schede caricate 1.?234/.test($("#ric-stato").textContent) && !/caricamento/.test($("#ric-stato").textContent));
   ok(eseguite === prima && !$("#ric-esegui-comando"), "la stessa ricerca ripetuta arriva dalla memoria: nessun comando da eseguire");
+  // 20/11/2026: la sentenza si legge solo come PDF; sull'iPhone il PDF non si scarica dentro l'app (ne' con il
+  // Comando, che copia solo testo): avviso e tasto per aprirlo sul sito del Ministero, nessun Comando richiesto.
   click($('[data-apri="doc0"]'));
-  await until(() => !!$("#sentenza-testo #ric-esegui-comando"));
-  const ut = urlDelComando();
-  ok(ut && new URL(ut).searchParams.get("q") === "id:doc0" && /testo integrale/.test($("#sentenza-testo").textContent), "testo integrale: il riquadro chiede di eseguire il comando per quella sentenza");
-  eseguiComando(); click($("#ric-incolla"));
-  await until(() => /Testo integrale della sentenza doc0/.test($("#sentenza-testo").textContent));
-  ok(/Testo integrale della sentenza doc0/.test($("#sentenza-testo").textContent), "testo integrale mostrato dopo l'incolla");
+  await until(() => /solo Android e Windows/.test($("#sentenza-testo").textContent));
+  ok(!$("#sentenza-testo #ric-esegui-comando") && /PDF ufficiale/.test($("#sentenza-testo").textContent) && !/Testo integrale/.test($("#sentenza-testo").textContent),
+    "sentenza su iPhone: avviso e link al PDF ufficiale, niente testo e nessun Comando");
 
   console.log("\n[E] Rifiuto del sito");
-  click($('[data-apri="doc1"]'));
-  await until(() => !!$("#sentenza-testo #ric-esegui-comando"));
+  click($('.tab[data-section="ricerca"]'));
+  $("#ric-testo").value = "parola nuova";
+  $("#ric-form").dispatchEvent(new w.Event("submit", { bubbles: true, cancelable: true }));
+  await until(() => !!$("#ric-esegui-comando"));
   appunti = "HTTP 429 Too Many Requests";
   click($("#ric-incolla")); await wait(100);
   const lim = I.limStato();

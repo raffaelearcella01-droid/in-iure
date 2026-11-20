@@ -64,7 +64,7 @@ function sentenzeWebGet(url, binario) {
   return new Promise((ok, ko) => {
     const valido = typeof url === "string" && url.length <= 8000 && (binario ? PDF_OK.test(url) : url.startsWith(SOLR));
     if (!valido) return ko(new Error("Indirizzo non consentito"));
-    const req = https.get(url, { agent: agente, headers: { "User-Agent": "InIure-Desktop/1.5 (consultazione personale, richieste limitate)", "Accept": binario ? "application/pdf" : "application/json" } }, (res) => {
+    const req = https.get(url, { agent: agente, headers: { "User-Agent": "InIure-Desktop/1.6 (consultazione personale, richieste limitate)", "Accept": binario ? "application/pdf" : "application/json" } }, (res) => {
       const pezzi = []; let tot = 0;
       const max = (binario ? 30 : 60) * 1024 * 1024;
       res.on("data", (c) => { tot += c.length; if (tot > max) { req.destroy(new Error("Risposta troppo grande")); return; } pezzi.push(c); });

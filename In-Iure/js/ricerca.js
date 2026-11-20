@@ -1,5 +1,5 @@
 /* ============================================================
-   In Iure — sezioni "Ricerca" (giurisprudenza di Cassazione su SentenzeWeb) e "Sentenze salvate"
+   In Iure — sezioni "Ricerca" (giurisprudenza di Cassazione su SentenzeWeb) e "Raccolte" (sentenze salvate)
    SentenzeWeb: archivio pubblico e gratuito del Ministero della Giustizia (www.italgiure.giustizia.it/sncass),
    per uso personale (scelta dell'utente del 09/11/2026).
    - Ricerca per ARTICOLO (tutte le forme di citazione insieme), per PAROLE CHIAVE, per FRASE ESATTA, con filtri.
@@ -176,7 +176,32 @@
 
   /* ---------------------------------------------------------------- costruzione delle ricerche */
   var SPECIALI = /[+\-&|!(){}[\]^~?:\\\/]/g;
+  /* Parole chiave (richiesta dell'utente del 20/11/2026): le parole scritte di seguito, senza virgole, formano UN
+     concetto e si cercano come frase "simile": tutte vicine tra loro (in qualunque ordine, anche con articoli e
+     preposizioni diverse), con la frase identica in cima ai risultati. La virgola (o il punto e virgola) separa
+     concetti diversi, che devono comparire tutti. Il motore di SentenzeWeb riconosce gia' le varianti delle parole
+     (verificato il 20/11/2026: "risarcimento" = "risarcimenti", "responsabilita medica"~4 = "responsabilita medico"~4)
+     e ignora gli accenti. Chi scrive operatori (OR, AND, NOT), asterischi o virgolette mantiene la ricerca di prima. */
+  var VUOTE = /^(?:il|lo|la|i|gli|le|l|un|uno|una|di|d|a|ad|da|in|con|su|per|tra|fra|del|dello|della|dei|degli|delle|dell|al|allo|alla|ai|agli|alle|all|dal|dallo|dalla|dai|dagli|dalle|dall|nel|nello|nella|nei|negli|nelle|nell|sul|sullo|sulla|sui|sugli|sulle|sull|col|coi|e|ed|o|od)$/i;
+  function concettoInQuery(seg) {
+    var parole = seg.replace(SPECIALI, " ").replace(/["\\]/g, " ").split(/[\s'’]+/).filter(Boolean);
+    if (!parole.length) return "";
+    if (parole.length === 1) return parole[0];
+    var piene = parole.filter(function (w) { return !VUOTE.test(w); });
+    var frase = '"' + parole.join(" ") + '"';
+    if (piene.length < 2) return frase;   // es. "di fatto": solo la frase
+    return "(" + frase + "^4 OR \"" + piene.join(" ") + "\"~" + Math.min(2 * piene.length, 10) + ")";
+  }
   function paroleInQuery(testo) {
+    var segmenti = String(testo || "").split(/[,;\n]+/).map(function (x) { return x.trim(); }).filter(Boolean);
+    var avanzata = /["*?]|(^|\s)(AND|OR|NOT)(\s|$)/;
+    var q = segmenti.map(function (seg) {
+      if (avanzata.test(seg)) { var v = paroleClassiche(seg); return v ? "(" + v + ")" : ""; }
+      return concettoInQuery(seg);
+    }).filter(Boolean);
+    return q.join(" AND ");
+  }
+  function paroleClassiche(testo) {
     var pezzi = String(testo || "").match(/"[^"]+"|\S+/g) || [];
     var out = [];
     pezzi.forEach(function (p) {
@@ -327,69 +352,34 @@
     var box = $("#sentenza-testo"), tit = $("#sentenza-titolo"), az = $("#sentenza-azioni");
     var s = schedaNota || trovaScheda(id) || { id: id, estremi: "Provvedimento " + id };
     tit.textContent = s.estremi;
-    az.innerHTML = azioniSentenzaHTML(s);
+    az.innerHTML = azioniSentenzaHTML(s, null, true);
     A.showSection("ricerca");
     A.showView($("#section-ricerca"), "sentenza-detail");
     A.pushRoute("#/sentenza/" + encodeURIComponent(id));
     vistaSentenza = { id: id, giro: (vistaSentenza.giro || 0) + 1 };
-    // 20/11/2026: la sentenza si mostra COME NEL PDF ufficiale (pagine impaginate). Il testo dell'archivio (OCR)
-    // e' un blocco unico, spesso senza intestazione e troncato: resta solo come alternativa ("Testo").
+    // 20/11/2026: la sentenza si mostra SOLO come nel PDF ufficiale (pagine impaginate). La vista "Testo" (OCR
+    // dell'archivio: blocco unico, spesso senza intestazione e troncato) e' stata tolta su richiesta dell'utente:
+    // resta il tasto «PDF ufficiale». Il testo OCR serve ancora solo all'esportazione Word delle raccolte.
     mostraPdf(s, box);
   }
   var vistaSentenza = { giro: 0 };
-  function schedeVista(s, attiva) {
-    return '<div class="sentenza-vista" role="tablist">' +
-      '<button class="chip' + (attiva === "pdf" ? " active" : "") + '" data-vista-sentenza="pdf" data-id="' + A.esc(s.id) + '">&#x1F4C4; Come nel PDF</button>' +
-      '<button class="chip' + (attiva === "testo" ? " active" : "") + '" data-vista-sentenza="testo" data-id="' + A.esc(s.id) + '">Testo</button></div>';
-  }
   function mostraPdf(s, box) {
     var giro = vistaSentenza.giro;
-    box.innerHTML = schedeVista(s, "pdf") + '<p class="empty">Caricamento del PDF ufficiale…</p>';
+    box.innerHTML = '<p class="empty">Caricamento del PDF ufficiale…</p>';
     pdfSentenza(s).then(function (b64) {
       if (giro !== vistaSentenza.giro) return;
       var pagine = document.createElement("div");
       pagine.className = "sentenza-pdf";
-      box.innerHTML = schedeVista(s, "pdf");
+      box.innerHTML = "";
       box.appendChild(pagine);
       return disegnaPdf(b64, pagine, function () { return giro === vistaSentenza.giro; });
     }).catch(function (e) {
       if (giro !== vistaSentenza.giro) return;
-      var motivo = e.message === "NON_DISPONIBILE"
-        ? "Il PDF si apre dentro l'app solo su Android e Windows. Usa il tasto «PDF ufficiale» qui sopra per aprirlo sul sito del Ministero."
-        : "PDF non disponibile ora (" + A.esc(e.message) + "). Puoi aprirlo con il tasto «PDF ufficiale» qui sopra.";
-      mostraTesto(s, box, '<p class="sentenza-avviso">' + motivo + "</p>");
+      var link = s.pdf ? ' <a class="btn btn--sm btn--gold" href="' + A.esc(s.pdf) + '" target="_blank" rel="noopener">&#x1F517; Apri il PDF ufficiale</a>' : "";
+      box.innerHTML = '<p class="sentenza-avviso">' + (e.message === "NON_DISPONIBILE"
+        ? "Su questo dispositivo il PDF non si apre dentro l'app (solo Android e Windows): aprilo sul sito del Ministero."
+        : "PDF non disponibile ora (" + A.esc(e.message) + "): puoi aprirlo sul sito del Ministero.") + "</p>" + (link ? "<p>" + link + "</p>" : "");
     });
-  }
-  function mostraTesto(s, box, avviso) {
-    var giro = vistaSentenza.giro;
-    box.innerHTML = schedeVista(s, "testo") + (avviso || "") + '<p class="empty">Caricamento del testo…</p>';
-    testoSentenza(s).then(function (t) {
-      if (giro !== vistaSentenza.giro) return;
-      box.innerHTML = schedeVista(s, "testo") + (avviso || "") +
-        '<p class="sentenza-avviso">Testo dell\'archivio SentenzeWeb, ricavato dal riconoscimento ottico (OCR): puo\' mancare l\'intestazione o la parte finale e contenere parole spezzate. Il testo fedele e\' quello «Come nel PDF».</p>' +
-        (t ? '<div class="sentenza-testo">' + testoOrdinatoHTML(t) + "</div>" : '<p class="empty">Testo non disponibile.</p>');
-    }).catch(function (e) {
-      if (giro !== vistaSentenza.giro) return;
-      if (e.message === "COMANDI_RAPIDI") { inAttesa(e.url, "sentenza:" + s.id); box.innerHTML = schedeVista(s, "testo") + pannelloComandi(e.url, "il testo integrale"); return; }
-      box.innerHTML = schedeVista(s, "testo") + (avviso || "") + '<p class="empty">' + (e.message === "NON_DISPONIBILE"
-        ? "Il testo integrale si scarica solo dall'app Android o Windows. Puoi aprire il PDF ufficiale con il tasto qui sopra."
-        : A.esc(e.message)) + "</p>";
-    });
-  }
-  /* Testo OCR reso leggibile: SentenzeWeb lo da' come un unico blocco senza a capo. Si vanno a capo SOLO prima
-     delle intestazioni tipiche dei provvedimenti e dei punti numerati; le parole NON vengono toccate. */
-  var TITOLI = /\s+(?=(?:FATTI DI CAUSA|FATTO E DIRITTO|SVOLGIMENTO DEL PROCESSO|RAGIONI DELLA DECISIONE|MOTIVI DELLA DECISIONE|CONSIDERATO IN DIRITTO|RITENUTO IN FATTO|CONSIDERATO CHE|RITENUTO CHE|P\.\s?Q\.\s?M\.|PER QUESTI MOTIVI|Cos[iì] deciso)(?![A-Za-zÀ-ÿ]))/g;
-  // punto numerato ("1. Con", "2.1. Il", "3.- La", "A) Col") subito dopo la fine di una frase
-  var PUNTI = /([.;:])\s+(?=(?:\d{1,2}(?:\.\d{1,2}){0,3}(?:\.|\)|\s?[-–])|[A-H]\))\s?[-–]?\s?[A-Z«"“])/g;
-  function testoOrdinatoHTML(t) {
-    var s = String(t || "").replace(/\r/g, "");
-    if (!/\n\s*\n/.test(s)) s = s.replace(TITOLI, "\n\n").replace(PUNTI, "$1\n\n");
-    return s.split(/\n{2,}/).map(function (p) {
-      p = p.trim(); if (!p) return "";
-      var titolo = /^(?:FATTI DI CAUSA|FATTO E DIRITTO|SVOLGIMENTO DEL PROCESSO|RAGIONI DELLA DECISIONE|MOTIVI DELLA DECISIONE|CONSIDERATO IN DIRITTO|RITENUTO IN FATTO|P\.\s?Q\.\s?M\.|PER QUESTI MOTIVI)/.exec(p);
-      if (titolo) return "<h3>" + A.esc(titolo[0]) + "</h3>" + (p.length > titolo[0].length ? "<p>" + A.esc(p.slice(titolo[0].length).trim()) + "</p>" : "");
-      return "<p>" + A.esc(p) + "</p>";
-    }).join("");
   }
 
   /* ---------------------------------------------------------------- PDF ufficiale (come nel documento) */
@@ -553,9 +543,12 @@
   function esportaFile(raccoltaId) {
     var rc = raccolte().filter(function (x) { return x.id === raccoltaId; })[0];
     if (!rc) return;
-    testiDi(rc).then(function (testi) {
-      var dati = { formato: "in-iure-raccolta", versione: 1, esportata: new Date().toISOString(), raccolta: { nome: rc.nome, creata: rc.creata,
-        sentenze: rc.sentenze.map(function (s, i) { var o = {}; Object.keys(s).forEach(function (k) { o[k] = s[k]; }); o.testo = testi[i] || ""; return o; }) } };
+    // 20/11/2026: nel file vanno anche i PDF ufficiali gia' scaricati, cosi' sull'iPhone (che non puo' scaricarli)
+    // la sentenza importata si legge comunque come nel PDF, anche offline.
+    Promise.all([testiDi(rc), Promise.all(rc.sentenze.map(function (s) { return kvGet("p|" + String(s.id).replace(/[^A-Za-z0-9]/g, "")); }))]).then(function (v) {
+      var testi = v[0], pdfs = v[1];
+      var dati = { formato: "in-iure-raccolta", versione: 2, esportata: new Date().toISOString(), raccolta: { nome: rc.nome, creata: rc.creata,
+        sentenze: rc.sentenze.map(function (s, i) { var o = {}; Object.keys(s).forEach(function (k) { o[k] = s[k]; }); o.testo = testi[i] || ""; if (pdfs[i]) o.pdfBase64 = pdfs[i]; return o; }) } };
       A.downloadBlob(new Blob([JSON.stringify(dati)], { type: "application/json" }), "Raccolta_" + A.safeName(rc.nome) + ".iniure.json");
     });
   }
@@ -574,6 +567,7 @@
           pdf: /^https:\/\/www\.italgiure\.giustizia\.it\//.test(String(s.pdf || "")) ? String(s.pdf) : "",
           estratto: String(s.estratto || ""), nota: String(s.nota || ""), salvata: String(s.salvata || "") });
         if (s.testo) kvSet("t|" + s.id, String(s.testo));
+        if (typeof s.pdfBase64 === "string" && s.pdfBase64.indexOf("JVBERi0") === 0 && s.pdfBase64.length < 42e6) kvSet("p|" + s.id, s.pdfBase64);
         n++;
       });
       salvaRaccolte(r);
@@ -595,11 +589,12 @@
     $("#ric-art").hidden = m !== "articolo";
     $("#ric-testo-wrap").hidden = m === "articolo";
     var t = $("#ric-testo");
-    t.placeholder = m === "frase" ? "Frase esatta, es.: danno da perdita di chance" : "Parole chiave, es.: responsabilita' medica risarci* (OR tra sinonimi)";
+    t.placeholder = m === "frase" ? "Frase esatta, es.: danno da perdita di chance" : "Parole chiave, es.: perdita di chance, nesso causale";
     $("#ric-aiuto").innerHTML = m === "articolo"
       ? "Cerca le sentenze che citano l'articolo in tutte le forme usate (es. «art. 2043 c.c.», «2043 cod. civ.», «articolo 2043 del codice civile»)."
-      : m === "frase" ? "Trova solo le sentenze che contengono queste parole, in questo ordine."
-        : "Trova le sentenze che contengono TUTTE le parole, in qualunque ordine. L'asterisco trova le varianti (<b>risarci*</b>), OR i sinonimi (<b>mobbing OR vessazioni</b>), le virgolette una locuzione.";
+      : m === "frase" ? "Trova solo le sentenze che contengono queste parole, esattamente in questo ordine."
+        : "Le parole scritte di seguito si cercano come una frase, anche scritta in modo simile (parole vicine, in altro ordine, al singolare o al plurale, con articoli diversi): le identiche compaiono per prime. " +
+          "La <b>virgola</b> separa altre parole chiave, che devono esserci tutte (<b>perdita di chance, nesso causale</b>). Restano l'asterisco (<b>risarci*</b>), OR (<b>mobbing OR vessazioni</b>) e le virgolette.";
   }
   function leggiForm() {
     return {
@@ -619,7 +614,7 @@
     return '<div class="ric-avviso"><p><b>Su questo dispositivo la ricerca diretta non e\' possibile.</b> Il sito SentenzeWeb accetta le ricerche ' +
       "solo dalle app In Iure per Android e Windows, non dalle pagine web (browser e iPhone).</p>" +
       "<p>Cosa puoi fare qui:</p><ul>" +
-      '<li>cerca sull\'app Android o Windows, salva le sentenze in una raccolta, usa «Esporta per altro dispositivo» e apri qui il file con «Importa raccolta» nella sezione <a href="#/salvate">Salvate</a>: leggerai i testi anche offline;</li>' +
+      '<li>cerca sull\'app Android o Windows, salva le sentenze in una raccolta, usa «Esporta per altro dispositivo» e apri qui il file con «Importa raccolta» nella sezione <a href="#/salvate">Raccolte</a>: leggerai le sentenze come nel PDF, anche offline;</li>' +
       '<li>apri il sito ufficiale: <a href="' + SITO + '" target="_blank" rel="noopener">SentenzeWeb</a>.</li></ul></div>';
   }
   /* ---------------------------------------------------------------- iPhone: Comandi Rapidi */
@@ -729,9 +724,9 @@
       (s.estratto ? '<p class="sentenza-card__estr">«…' + estrattoHTML(s.estratto) + '…»</p>' : "") +
       '<div class="articolo__actions">' + azioniSentenzaHTML(s, salvata) + "</div></article>";
   }
-  function azioniSentenzaHTML(s, salvata) {
+  function azioniSentenzaHTML(s, salvata, inLettura) {   // inLettura: pagina della sentenza (niente tasto «Leggi»)
     if (salvata == null) salvata = inRaccolte(s.id);
-    return '<button class="act-btn" data-apri="' + A.esc(s.id) + '">&#x1F4C4; Leggi</button>' +
+    return (inLettura ? "" : '<button class="act-btn" data-apri="' + A.esc(s.id) + '">&#x1F4C4; Leggi</button>') +
       '<button class="act-btn act-btn--fav' + (salvata ? " is-on" : "") + '" data-salva="' + A.esc(s.id) + '">' + (salvata ? "&#9733; Salvata" : "&#9734; Salva") + "</button>" +
       '<button class="act-btn" data-copia-estremi="' + A.esc(s.id) + '">&#x1F4CB; Estremi</button>' +
       (s.pdf ? '<a class="act-btn" href="' + A.esc(s.pdf) + '" target="_blank" rel="noopener">&#x1F517; PDF ufficiale</a>' : "");
@@ -807,17 +802,11 @@
       disegnaRisultati();
     });
     document.addEventListener("click", function (e) {
-      var t = e.target.closest("[data-apri],[data-salva],[data-copia-estremi],[data-vista-sentenza],#ric-altre,#ric-carica-tutte,#ric-incolla,#ric-incolla-usa,[data-raccolta],#raccolte-indietro,#raccolta-crea," +
+      var t = e.target.closest("[data-apri],[data-salva],[data-copia-estremi],#ric-altre,#ric-carica-tutte,#ric-incolla,#ric-incolla-usa,[data-raccolta],#raccolte-indietro,#raccolta-crea," +
         "[data-esporta-word],[data-esporta-file],[data-rinomina],[data-elimina-raccolta],[data-togli],#elimina-selezionate,[data-in],#salva-crea,#salva-chiudi");
       if (!t) return;
       if (t.hasAttribute("data-apri")) { e.preventDefault(); apriSentenza(t.getAttribute("data-apri")); return; }
       if (t.hasAttribute("data-salva")) { var s = trovaScheda(t.getAttribute("data-salva")); if (s) chiediRaccolta(s); return; }
-      if (t.hasAttribute("data-vista-sentenza")) {
-        var sv = trovaScheda(t.getAttribute("data-id")) || { id: t.getAttribute("data-id"), estremi: "" }, bx = $("#sentenza-testo");
-        vistaSentenza.giro++;
-        if (t.getAttribute("data-vista-sentenza") === "pdf") mostraPdf(sv, bx); else mostraTesto(sv, bx);
-        return;
-      }
       if (t.hasAttribute("data-copia-estremi")) { var s2 = trovaScheda(t.getAttribute("data-copia-estremi")); if (s2) A.copyText(s2.estremi + (s2.pdf ? "\n" + s2.pdf : ""), "Estremi copiati"); return; }
       if (t.id === "ric-altre") { stato.mostrate += 50; disegnaRisultati(); return; }
       if (t.id === "ric-carica-tutte") { caricaBlocco(stato.caricate, stato.giro); return; }
@@ -901,6 +890,6 @@
     _interni: { paroleInQuery: paroleInQuery, fraseInQuery: fraseInQuery, articoloInQuery: articoloInQuery, filtri: filtri, estremi: estremi,
       raccolte: raccolte, aggiungi: aggiungi, rimuovi: rimuovi, nuovaRaccolta: nuovaRaccolta, LIMITI: LIMITI, trasporto: trasporto,
       usaIncollato: usaIncollato, limStato: function () { return limStato(); }, stessiParametri: stessiParametri, linkComando: linkComando, COMANDO: COMANDO,
-      disegnaPdf: disegnaPdf, testoOrdinatoHTML: testoOrdinatoHTML, estrattoHTML: estrattoHTML }
+      disegnaPdf: disegnaPdf, estrattoHTML: estrattoHTML }
   };
 })();

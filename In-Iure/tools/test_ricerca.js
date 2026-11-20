@@ -56,7 +56,16 @@ const until = async (f, ms = 8000) => { const t0 = Date.now(); while (!f() && Da
   I.LIMITI.intervalloMs = 0;   // in prova niente attese
 
   console.log("\n[A] Sezioni e menu");
-  ok($$(".tab").length === 6 && !!$('.tab[data-section="ricerca"]') && !!$('.tab[data-section="salvate"]'), "6 voci nel menu, con Ricerca e Salvate");
+  ok($$(".tab").length === 6 &&!!$('.tab[data-section="ricerca"]') && /Raccolte/.test($('.tab[data-section="salvate"]').textContent), "6 voci nel menu, con Ricerca e Raccolte");
+  ok(!$("#section-preferiti .settings") && !!$("#impostazioni-modal .settings [data-font]") && !!$("#impostazioni-modal [data-tema]") && !!$("#impostazioni-modal [data-reset]"), "impostazioni tolte da Preferiti e spostate nella finestra Impostazioni");
+  ok($("#impostazioni-modal").hidden, "finestra Impostazioni chiusa all'avvio");
+  click($("#impostazioni-btn"));
+  ok(!$("#impostazioni-modal").hidden, "il tasto con l'ingranaggio apre le Impostazioni");
+  click($('#impostazioni-modal [data-tema="scuro"]'));
+  ok(w.document.documentElement.getAttribute("data-theme") === "dark" && $('#impostazioni-modal [data-tema="scuro"]').classList.contains("is-active"), "dalla finestra il tema cambia davvero");
+  click($('#impostazioni-modal [data-tema="auto"]'));
+  click($('#impostazioni-modal [data-close-app-modal]'));
+  ok($("#impostazioni-modal").hidden, "la X chiude le Impostazioni");
   click($('.tab[data-section="ricerca"]'));
   ok($("#section-ricerca").classList.contains("is-active") && (w.location.protocol === "file:" || /#\/ricerca$/.test(w.location.href)), "la voce Ricerca apre la sezione (#/ricerca) [" + w.location.hash + "]");
   ok($$(".ric-modo").length === 3, "tre modalita': articolo, parole chiave, frase esatta");
@@ -69,9 +78,15 @@ const until = async (f, ms = 8000) => { const t0 = Date.now(); while (!f() && Da
   ok(/"art\. 21 241 1990"~8/.test(I.articoloInQuery("l241", "21")), "legge numerata: numero e anno dell'atto");
   ok(/"art\. 33 206 2005"~8/.test(I.articoloInQuery("consumo", "33")) && /cod\. cons\./.test(I.articoloInQuery("consumo", "33")), "codice del consumo: abbreviazione e d.lgs. 206/2005");
   ok(I.articoloInQuery("codice-civile", "abc") === "", "numero di articolo non valido rifiutato");
-  ok(I.paroleInQuery("responsabilita medica risarci*") === "responsabilita AND medica AND risarci*", "parole chiave: AND tra le parole, asterisco conservato");
-  ok(I.paroleInQuery("mobbing OR vessazioni") === "mobbing OR vessazioni", "parole chiave: OR tra sinonimi");
-  ok(I.paroleInQuery('a:b "lastrico solare" (x)') === 'a AND b AND "lastrico solare" AND x', "caratteri speciali neutralizzati, virgolette conservate");
+  const pq = I.paroleInQuery("danno da perdita di chance");
+  ok(pq === '("danno da perdita di chance"^4 OR "danno perdita chance"~6)', "parole di seguito = una frase anche simile: identica in cima, poi parole vicine senza articoli/preposizioni (" + pq + ")");
+  ok(I.paroleInQuery("danno da perdita di chance, nesso causale") === '("danno da perdita di chance"^4 OR "danno perdita chance"~6) AND ("nesso causale"^4 OR "nesso causale"~4)', "la virgola separa altre parole chiave, tutte richieste");
+  ok(I.paroleInQuery("usucapione; servitu, possesso") === "usucapione AND servitu AND possesso", "parole singole separate da virgola o punto e virgola");
+  ok(I.paroleInQuery("di fatto") === '"di fatto"', "frase di sole parole vuote: cercata come scritta");
+  ok(I.paroleInQuery("responsabilita medica risarci*") === "(responsabilita AND medica AND risarci*)", "con l'asterisco: ricerca di prima (tutte le parole), asterisco conservato");
+  ok(I.paroleInQuery("mobbing OR vessazioni, licenziamento") === "(mobbing OR vessazioni) AND licenziamento", "OR tra sinonimi, poi un'altra parola chiave");
+  ok(I.paroleInQuery('a:b "lastrico solare" (x)') === '(a AND b AND "lastrico solare" AND x)', "caratteri speciali neutralizzati, virgolette conservate");
+  ok(I.paroleInQuery("art. 2043 c.c., danno") === '("art. 2043 c.c."^4 OR "art. 2043 c.c."~6) AND danno', "i punti delle abbreviazioni (c.c.) non separano le parole chiave");
   ok(I.fraseInQuery('danno "da" perdita di chance') === '"danno da perdita di chance"', "frase esatta tra virgolette");
   const fq = I.filtri({ archivio: "civile", annoDa: "2022", annoA: "", sezione: "U", tipo: "Sentenza" });
   ok(fq.join("|") === 'kind:snciv|anno:[2022 TO *]|szdec:"U"|tipoprov:"Sentenza"', "filtri: archivio, anni, sezione, tipo");
@@ -82,7 +97,7 @@ const until = async (f, ms = 8000) => { const t0 = Date.now(); while (!f() && Da
   await until(() => /1\.234|1234/.test($("#ric-stato").textContent) && !/caricamento/.test($("#ric-stato").textContent));
   const ricerche = richieste.filter(u => !/^id:/.test(u.searchParams.get("q")));
   ok(ricerche.length === 3, "1234 risultati scaricati in 3 richieste da 500 (" + ricerche.length + ")");
-  ok(ricerche[0].searchParams.get("q") === "ocr:(danno AND biologico)" && ricerche[0].searchParams.get("rows") === "500", "richiesta Solr corretta (q, rows=500)");
+  ok(ricerche[0].searchParams.get("q") === 'ocr:(("danno biologico"^4 OR "danno biologico"~4))' && ricerche[0].searchParams.get("rows") === "500", "richiesta Solr corretta (q, rows=500)");
   ok(/schede caricate 1\.234|schede caricate 1234/.test($("#ric-stato").textContent), "tutte le 1234 schede caricate");
   ok($$("#ric-risultati .sentenza-card").length === 50, "mostrate 50 schede per volta");
   click($("#ric-altre"));
@@ -103,18 +118,13 @@ const until = async (f, ms = 8000) => { const t0 = Date.now(); while (!f() && Da
   await until(() => pdfRichiesti.length > 0);
   await wait(100);
   ok(pdfRichiesti.length === 1 && /hc\.dll\?verbo=attach&db=snciv&id=\.\/20240115\/snciv@s30@a2024@n0@tO\.clean\.pdf$/.test(pdfRichiesti[0]), "apertura: chiesto il PDF ufficiale (" + pdfRichiesti[0] + ")");
-  // jsdom non sa disegnare il PDF: l'app deve ripiegare sul testo, spiegandolo (nelle app vere il PDF si vede)
-  await until(() => /PDF non disponibile ora|Testo integrale della sentenza doc0/.test($("#sentenza-testo").textContent));
-  ok(/Come nel PDF/.test($("#sentenza-testo").textContent) && !!$('[data-vista-sentenza="pdf"]'), "tasto «Come nel PDF» presente");
-  ok(/PDF non disponibile ora/.test($("#sentenza-testo").textContent), "se il PDF non si puo' disegnare: avviso e ripiego sul testo");
+  // jsdom non sa disegnare il PDF: l'app mostra l'avviso con il link al PDF ufficiale (nelle app vere il PDF si vede)
+  await until(() => /PDF non disponibile ora/.test($("#sentenza-testo").textContent));
+  await wait(300);
+  ok(/PDF non disponibile ora/.test($("#sentenza-testo").textContent) && /verbo=attach/.test(($("#sentenza-testo a") || {}).href || ""), "se il PDF non si puo' disegnare: avviso e link al PDF ufficiale");
+  ok(!$("[data-vista-sentenza]") && !/Testo integrale della sentenza doc0/.test($("#sentenza-detail").textContent) && !$("#sentenza-testo .sentenza-testo"), "nessuna vista Testo (solo PDF)");
+  ok(!$('#sentenza-azioni [data-apri]') && /PDF ufficiale/.test($("#sentenza-azioni").textContent), "nella pagina della sentenza: niente «Leggi», resta «PDF ufficiale»");
   ok(w.InIureStore.get("sw_limitatore", null).r.length >= 4, "anche il PDF passa dalla protezione anti-blocco");
-  click($('[data-vista-sentenza="testo"]'));
-  await until(() => /Testo integrale della sentenza doc0/.test($("#sentenza-testo").textContent));
-  ok(!$("#sentenza-detail").hidden && /Testo integrale della sentenza doc0/.test($("#sentenza-testo").textContent), "vista Testo: testo integrale");
-  const h3 = $$("#sentenza-testo h3").map(x => x.textContent), ps = $$("#sentenza-testo .sentenza-testo p").map(x => x.textContent);
-  ok(h3.join("|") === "FATTI DI CAUSA|RAGIONI DELLA DECISIONE|P.Q.M.", "testo ordinato: titoli del provvedimento (" + h3.join("|") + ")");
-  ok(ps.some(p => /^1\. Con il primo motivo/.test(p)) && ps.some(p => /^2\.1\. Il motivo/.test(p)) && ps.some(p => /art\. 12 Cost\. e art\. 2043 c\.c\./.test(p)), "testo ordinato: punti numerati a capo, riferimenti normativi intatti");
-  ok(/riconoscimento ottico/.test($("#sentenza-testo").textContent), "avviso: il testo OCR puo' essere incompleto, quello fedele e' il PDF");
   ok((w.location.protocol === "file:" || /#\/sentenza\/doc0$/.test(w.location.href)), "indirizzo #/sentenza/<id> [" + w.location.hash + "]");
   click($('#sentenza-azioni [data-salva="doc0"]'));
   ok(!$("#salva-modal").hidden, "si apre la scelta della raccolta");
@@ -127,7 +137,7 @@ const until = async (f, ms = 8000) => { const t0 = Date.now(); while (!f() && Da
 
   console.log("\n[E] Sentenze salvate: elenco, note, eliminazione");
   click($('.tab[data-section="salvate"]'));
-  ok($("#section-salvate").classList.contains("is-active") && /Danno biologico/.test($("#salvate-body").textContent), "la raccolta compare in Salvate");
+  ok($("#section-salvate").classList.contains("is-active") && /Danno biologico/.test($("#salvate-body").textContent) && /Raccolte di giurisprudenza/.test($("#salvate-home h1").textContent), "la raccolta compare in Raccolte");
   click($('[data-raccolta="' + rid + '"]'));
   ok($$("#salvate-body .sentenza-card").length === 4, "4 sentenze nella raccolta");
   const nota = $('[data-nota="doc0"]'); nota.value = "Utile per il danno differenziale"; nota.dispatchEvent(new w.Event("input", { bubbles: true }));
@@ -151,6 +161,7 @@ const until = async (f, ms = 8000) => { const t0 = Date.now(); while (!f() && Da
   await until(() => blobs.length > 0);
   const json = blobs[0] ? JSON.parse(await blobs[0].text()) : {};
   ok(json.formato === "in-iure-raccolta" && json.raccolta.sentenze[0].testo.indexOf("doc0") > 0, "file per altro dispositivo con i testi");
+  ok(/^JVBERi0/.test(json.raccolta.sentenze[0].pdfBase64 || ""), "il file per altro dispositivo contiene anche il PDF ufficiale (per l'iPhone)");
   click($('[data-elimina-raccolta="' + rid + '"]'));
   ok(I.raccolte().length === 0, "eliminazione dell'intera raccolta");
   const inp = $("#raccolta-importa");
@@ -159,6 +170,11 @@ const until = async (f, ms = 8000) => { const t0 = Date.now(); while (!f() && Da
   inp.dispatchEvent(new w.Event("change", { bubbles: true }));
   await until(() => I.raccolte().length === 1);
   ok(I.raccolte().length === 1 && I.raccolte()[0].sentenze[0].nota === "Utile per il danno differenziale", "importazione della raccolta con le note");
+  const nPdf = pdfRichiesti.length;
+  click($('#salvate-body [data-apri="doc0"]'));
+  await until(() => /PDF non disponibile ora/.test($("#sentenza-testo").textContent));
+  ok(pdfRichiesti.length === nPdf, "sentenza importata: PDF letto dal file importato, senza scaricarlo di nuovo");
+  click($('.tab[data-section="salvate"]'));
   const bad = new w.File([JSON.stringify({ formato: "in-iure-raccolta", raccolta: { nome: "X", sentenze: [{ id: "a<b>", estremi: "x" }, { id: "ok1", estremi: "y", pdf: "javascript:alert(1)" }] } })], "x.json");
   click($("#raccolte-indietro"));
   const inp2 = $("#raccolta-importa");

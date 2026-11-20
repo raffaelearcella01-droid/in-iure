@@ -1513,13 +1513,15 @@
   }
 
   // Modali dell'app: chiusura con X, clic sullo sfondo, tasto Esc
-  var APP_MODALS = ["#xref-modal", "#quiz-setup"];
+  var APP_MODALS = ["#xref-modal", "#quiz-setup", "#impostazioni-modal"];
   function closeAllModals() { APP_MODALS.concat(["#share-modal", "#ios-guide", "#salva-modal"]).forEach(function (s) { var m = $(s); if (m) m.hidden = true; }); }
   APP_MODALS.forEach(function (s) {
     var m = $(s); if (!m) return;
     m.addEventListener("click", function (e) { if (e.target === m || e.target.closest("[data-close-app-modal]")) m.hidden = true; });
   });
   document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeAllModals(); });
+  // Impostazioni (20/11/2026): non piu' in fondo a Preferiti, ma in una finestra aperta dall'ingranaggio in alto a destra
+  $("#impostazioni-btn").addEventListener("click", function () { closeAllModals(); applySettings(); $("#impostazioni-modal").hidden = false; });
 
   // Avvio quiz dalla finestra di scelta
   var qs = $("#quiz-setup");
