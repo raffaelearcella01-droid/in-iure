@@ -1,9 +1,11 @@
 @echo off
 rem Apre l'assistente In Iure (Antigravity CLI, comando "agy") su UNA pratica: i documenti della cartella scelta
 rem sono l'unica fonte dei fatti; pareri e atti vengono salvati in Word nella sottocartella "In Iure - elaborati".
-rem Uso: doppio clic (si sceglie la cartella) oppure trascinare la cartella della pratica su questa icona.
+rem Uso: doppio clic (si sceglie la cartella), trascinare la cartella della pratica su questa icona, oppure da un
+rem terminale aperto nella cartella: & "<percorso>\APRI_PRATICA_IN_IURE.bat" .
 setlocal
-set "CARTELLA=%~1"
+rem %~f1 = percorso completo: funziona anche con "." da un terminale aperto nella cartella della pratica
+set "CARTELLA=%~f1"
 if "%CARTELLA%"=="" for /f "usebackq delims=" %%C in (`powershell -NoProfile -STA -Command "$s=New-Object -ComObject Shell.Application; $f=$s.BrowseForFolder(0,'Scegli la cartella della pratica',0x51,0); if($f){$f.Self.Path}"`) do set "CARTELLA=%%C"
 if "%CARTELLA%"=="" (echo Nessuna cartella scelta. & pause & exit /b 1)
 if not exist "%CARTELLA%\" (echo "%CARTELLA%" non e' una cartella. & pause & exit /b 1)
