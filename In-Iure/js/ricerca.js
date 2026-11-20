@@ -98,14 +98,23 @@
   function linkComando(url) {
     return "shortcuts://run-shortcut?name=" + encodeURIComponent(COMANDO) + "&input=text&text=" + encodeURIComponent(url);
   }
-  function richiestaGrezza(url) {
+  // binario = PDF ufficiale del provvedimento: la risposta (data) e' il file in base64
+  function richiestaGrezza(url, binario) {
     var t = trasporto();
     if (t === "android") {
-      return window.Capacitor.Plugins.CapacitorHttp.get({ url: url, headers: { "Accept": "application/json" }, connectTimeout: 30000, readTimeout: 60000 })
-        .then(function (r) { return { status: r.status, data: typeof r.data === "string" ? JSON.parse(r.data) : r.data }; });
+      var o = { url: url, headers: { "Accept": binario ? "application/pdf" : "application/json" }, connectTimeout: 30000, readTimeout: 60000 };
+      if (binario) o.responseType = "blob";   // CapacitorHttp nativo: blob -> stringa base64
+      return window.Capacitor.Plugins.CapacitorHttp.get(o).then(function (r) {
+        // Capacitor 8 (HttpRequestHandler.readStreamAsBase64): base64 con a capo ogni 76 caratteri -> si tolgono
+        if (binario) return { status: r.status, data: typeof r.data === "string" ? r.data.replace(/^data:[^,]*,/, "").replace(/\s+/g, "") : null };
+        return { status: r.status, data: typeof r.data === "string" ? JSON.parse(r.data) : r.data };
+      });
     }
-    if (t === "desktop") return window.InIureDesktopRete.get(url);
-    if (t === "test") return window.__InIureRicercaTest(url);
+    if (t === "desktop") {
+      if (binario) return window.InIureDesktopRete.pdf ? window.InIureDesktopRete.pdf(url) : Promise.reject(new Error("NON_DISPONIBILE"));
+      return window.InIureDesktopRete.get(url);
+    }
+    if (t === "test") return window.__InIureRicercaTest(url, { binario: !!binario });
     return Promise.reject(new Error("NON_DISPONIBILE"));
   }
 
@@ -115,7 +124,7 @@
   var coda = Promise.resolve(), ultima = 0;
   function ErroreLimite(msg) { var e = new Error(msg); e.limite = true; return e; }
   function attesa(ms) { return new Promise(function (ok) { setTimeout(ok, ms); }); }
-  function protetta(url) {
+  function protetta(url, binario) {
     var lavoro = coda.then(function () {
       var s = limStato(), ora = Date.now();
       s.r = (s.r || []).filter(function (t) { return ora - t < 86400000; });
@@ -123,13 +132,23 @@
       if (s.r.filter(function (t) { return ora - t < 3600000; }).length >= LIMITI.orari) throw ErroreLimite("Protezione anti-blocco: raggiunto il tetto di " + LIMITI.orari + " richieste in un'ora. Riprova piu' tardi: le ricerche gia' fatte restano disponibili.");
       if (s.r.length >= LIMITI.giornalieri) throw ErroreLimite("Protezione anti-blocco: raggiunto il tetto di " + LIMITI.giornalieri + " richieste in 24 ore.");
       // iPhone: la richiesta la fa il Comando Rapido; si conta quando la risposta viene incollata
-      if (trasporto() === "comandi") throw ErroreComandi(url);
+      // (il PDF su iPhone si apre con il collegamento al sito ufficiale)
+      if (trasporto() === "comandi") { if (binario) throw new Error("NON_DISPONIBILE"); throw ErroreComandi(url); }
       var manca = ultima + LIMITI.intervalloMs - ora;
       return attesa(manca > 0 ? manca : 0).then(function () {
         ultima = Date.now();
         s.r.push(ultima); limSalva(s);
-        return richiestaGrezza(url);
+        return richiestaGrezza(url, binario);
       }).then(function (r) {
+        if (binario) {
+          if (r.status === 403 || r.status === 429 || r.status === 503) {
+            var s3 = limStato(); s3.pausaFino = Date.now() + LIMITI.pausaMs; limSalva(s3);
+            throw ErroreLimite("SentenzeWeb ha risposto con un rifiuto (HTTP " + r.status + "): richieste sospese per 30 minuti per non essere bloccati.");
+          }
+          if (r.status < 200 || r.status >= 300) throw new Error("SentenzeWeb ha risposto con un errore (HTTP " + r.status + ").");
+          if (!r.data || typeof r.data !== "string" || r.data.slice(0, 7) !== "JVBERi0") throw new Error("Il sito non ha restituito il PDF del provvedimento.");
+          return r.data;   // "JVBERi0" = "%PDF-" in base64
+        }
         if (r.status === 403 || r.status === 429 || r.status === 503) {
           var s2 = limStato(); s2.pausaFino = Date.now() + LIMITI.pausaMs; limSalva(s2);
           throw ErroreLimite("SentenzeWeb ha risposto con un rifiuto (HTTP " + r.status + "): ricerche sospese per 30 minuti per non essere bloccati.");
@@ -254,6 +273,13 @@
     if (!f) return "";
     return PDF + d.kind + "&id=" + (f.indexOf(".clean.") > 0 ? f : f.replace(".pdf", ".clean.pdf"));
   }
+  /* Estratti: SentenzeWeb marca le parole trovate con <em>...</em>. Prima venivano mostrati come testo
+     ("<em>articolo</em> <em>2043</em>"); ora diventano evidenziazioni, e il resto resta testo sicuro. */
+  function estrattoHTML(t) {
+    return A.esc(String(t || "")).replace(/&lt;em&gt;/g, "<mark>").replace(/&lt;\/em&gt;/g, "</mark>")
+      .replace(/<\/mark>(\s*)<mark>/g, "$1");
+  }
+  function senzaMarcatori(t) { return String(t || "").replace(/<\/?em>/g, ""); }
   function scheda(d, hl) {
     return {
       id: d.id, estremi: estremi(d), kind: d.kind, anno: d.anno, materia: [].concat(d.materia || []).join(", "),
@@ -302,18 +328,127 @@
     var s = schedaNota || trovaScheda(id) || { id: id, estremi: "Provvedimento " + id };
     tit.textContent = s.estremi;
     az.innerHTML = azioniSentenzaHTML(s);
-    box.innerHTML = '<p class="empty">Caricamento del testo integrale…</p>';
     A.showSection("ricerca");
     A.showView($("#section-ricerca"), "sentenza-detail");
     A.pushRoute("#/sentenza/" + encodeURIComponent(id));
-    testoSentenza(s).then(function (t) {
-      box.innerHTML = t ? '<div class="sentenza-testo">' + A.esc(t).replace(/\n{2,}/g, "</p><p>").replace(/^/, "<p>").replace(/$/, "</p>") + "</div>"
-        : '<p class="empty">Testo non disponibile.</p>';
+    vistaSentenza = { id: id, giro: (vistaSentenza.giro || 0) + 1 };
+    // 20/11/2026: la sentenza si mostra COME NEL PDF ufficiale (pagine impaginate). Il testo dell'archivio (OCR)
+    // e' un blocco unico, spesso senza intestazione e troncato: resta solo come alternativa ("Testo").
+    mostraPdf(s, box);
+  }
+  var vistaSentenza = { giro: 0 };
+  function schedeVista(s, attiva) {
+    return '<div class="sentenza-vista" role="tablist">' +
+      '<button class="chip' + (attiva === "pdf" ? " active" : "") + '" data-vista-sentenza="pdf" data-id="' + A.esc(s.id) + '">&#x1F4C4; Come nel PDF</button>' +
+      '<button class="chip' + (attiva === "testo" ? " active" : "") + '" data-vista-sentenza="testo" data-id="' + A.esc(s.id) + '">Testo</button></div>';
+  }
+  function mostraPdf(s, box) {
+    var giro = vistaSentenza.giro;
+    box.innerHTML = schedeVista(s, "pdf") + '<p class="empty">Caricamento del PDF ufficiale…</p>';
+    pdfSentenza(s).then(function (b64) {
+      if (giro !== vistaSentenza.giro) return;
+      var pagine = document.createElement("div");
+      pagine.className = "sentenza-pdf";
+      box.innerHTML = schedeVista(s, "pdf");
+      box.appendChild(pagine);
+      return disegnaPdf(b64, pagine, function () { return giro === vistaSentenza.giro; });
     }).catch(function (e) {
-      if (e.message === "COMANDI_RAPIDI") { inAttesa(e.url, "sentenza:" + id); box.innerHTML = pannelloComandi(e.url, "il testo integrale"); return; }
-      box.innerHTML = '<p class="empty">' + (e.message === "NON_DISPONIBILE"
+      if (giro !== vistaSentenza.giro) return;
+      var motivo = e.message === "NON_DISPONIBILE"
+        ? "Il PDF si apre dentro l'app solo su Android e Windows. Usa il tasto «PDF ufficiale» qui sopra per aprirlo sul sito del Ministero."
+        : "PDF non disponibile ora (" + A.esc(e.message) + "). Puoi aprirlo con il tasto «PDF ufficiale» qui sopra.";
+      mostraTesto(s, box, '<p class="sentenza-avviso">' + motivo + "</p>");
+    });
+  }
+  function mostraTesto(s, box, avviso) {
+    var giro = vistaSentenza.giro;
+    box.innerHTML = schedeVista(s, "testo") + (avviso || "") + '<p class="empty">Caricamento del testo…</p>';
+    testoSentenza(s).then(function (t) {
+      if (giro !== vistaSentenza.giro) return;
+      box.innerHTML = schedeVista(s, "testo") + (avviso || "") +
+        '<p class="sentenza-avviso">Testo dell\'archivio SentenzeWeb, ricavato dal riconoscimento ottico (OCR): puo\' mancare l\'intestazione o la parte finale e contenere parole spezzate. Il testo fedele e\' quello «Come nel PDF».</p>' +
+        (t ? '<div class="sentenza-testo">' + testoOrdinatoHTML(t) + "</div>" : '<p class="empty">Testo non disponibile.</p>');
+    }).catch(function (e) {
+      if (giro !== vistaSentenza.giro) return;
+      if (e.message === "COMANDI_RAPIDI") { inAttesa(e.url, "sentenza:" + s.id); box.innerHTML = schedeVista(s, "testo") + pannelloComandi(e.url, "il testo integrale"); return; }
+      box.innerHTML = schedeVista(s, "testo") + (avviso || "") + '<p class="empty">' + (e.message === "NON_DISPONIBILE"
         ? "Il testo integrale si scarica solo dall'app Android o Windows. Puoi aprire il PDF ufficiale con il tasto qui sopra."
         : A.esc(e.message)) + "</p>";
+    });
+  }
+  /* Testo OCR reso leggibile: SentenzeWeb lo da' come un unico blocco senza a capo. Si vanno a capo SOLO prima
+     delle intestazioni tipiche dei provvedimenti e dei punti numerati; le parole NON vengono toccate. */
+  var TITOLI = /\s+(?=(?:FATTI DI CAUSA|FATTO E DIRITTO|SVOLGIMENTO DEL PROCESSO|RAGIONI DELLA DECISIONE|MOTIVI DELLA DECISIONE|CONSIDERATO IN DIRITTO|RITENUTO IN FATTO|CONSIDERATO CHE|RITENUTO CHE|P\.\s?Q\.\s?M\.|PER QUESTI MOTIVI|Cos[iì] deciso)(?![A-Za-zÀ-ÿ]))/g;
+  // punto numerato ("1. Con", "2.1. Il", "3.- La", "A) Col") subito dopo la fine di una frase
+  var PUNTI = /([.;:])\s+(?=(?:\d{1,2}(?:\.\d{1,2}){0,3}(?:\.|\)|\s?[-–])|[A-H]\))\s?[-–]?\s?[A-Z«"“])/g;
+  function testoOrdinatoHTML(t) {
+    var s = String(t || "").replace(/\r/g, "");
+    if (!/\n\s*\n/.test(s)) s = s.replace(TITOLI, "\n\n").replace(PUNTI, "$1\n\n");
+    return s.split(/\n{2,}/).map(function (p) {
+      p = p.trim(); if (!p) return "";
+      var titolo = /^(?:FATTI DI CAUSA|FATTO E DIRITTO|SVOLGIMENTO DEL PROCESSO|RAGIONI DELLA DECISIONE|MOTIVI DELLA DECISIONE|CONSIDERATO IN DIRITTO|RITENUTO IN FATTO|P\.\s?Q\.\s?M\.|PER QUESTI MOTIVI)/.exec(p);
+      if (titolo) return "<h3>" + A.esc(titolo[0]) + "</h3>" + (p.length > titolo[0].length ? "<p>" + A.esc(p.slice(titolo[0].length).trim()) + "</p>" : "");
+      return "<p>" + A.esc(p) + "</p>";
+    }).join("");
+  }
+
+  /* ---------------------------------------------------------------- PDF ufficiale (come nel documento) */
+  function pdfSentenza(s) {
+    var id = String(s.id).replace(/[^A-Za-z0-9]/g, "");
+    return kvGet("p|" + id).then(function (b) {
+      if (b) return b;
+      if (!s.pdf) throw new Error("indirizzo del PDF non presente nella scheda");
+      return protetta(s.pdf, true).then(function (b64) {
+        if (inRaccolte(id)) kvSet("p|" + id, b64);   // i PDF delle sentenze salvate restano disponibili offline
+        return b64;
+      });
+    });
+  }
+  var pdfjsPronto = null;
+  function caricaPdfJs() {
+    if (pdfjsPronto) return pdfjsPronto;
+    pdfjsPronto = new Promise(function (ok, ko) {
+      if (window.pdfjsLib) return ok(window.pdfjsLib);
+      var sc = document.createElement("script");
+      sc.src = "js/vendor/pdfjs/pdf.min.js";
+      sc.onload = function () {
+        var L = window.pdfjsLib;
+        if (!L) return ko(new Error("lettore PDF non caricato"));
+        L.GlobalWorkerOptions.workerSrc = new URL("js/vendor/pdfjs/pdf.worker.min.js", document.baseURI).href;
+        ok(L);
+      };
+      sc.onerror = function () { pdfjsPronto = null; ko(new Error("lettore PDF non caricato")); };
+      document.head.appendChild(sc);
+    });
+    return pdfjsPronto;
+  }
+  function base64InByte(b64) {
+    var bin = atob(b64), n = bin.length, u = new Uint8Array(n);
+    for (var i = 0; i < n; i++) u[i] = bin.charCodeAt(i);
+    return u;
+  }
+  // Disegna le pagine una dopo l'altra, larghe quanto lo schermo; ancora() = la vista e' ancora aperta
+  function disegnaPdf(b64, contenitore, ancora) {
+    return caricaPdfJs().then(function (L) {
+      // isEvalSupported: false = nessuna esecuzione di codice dai caratteri del PDF (CVE-2024-4367)
+      return L.getDocument({ data: base64InByte(b64), isEvalSupported: false, enableXfa: false }).promise;
+    }).then(function (doc) {
+      var larg = Math.max(280, Math.min(contenitore.clientWidth || 800, 1100));
+      var dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+      var n = 0;
+      function prossima() {
+        if (!ancora() || ++n > doc.numPages) return;
+        return doc.getPage(n).then(function (pg) {
+          var v1 = pg.getViewport({ scale: 1 }), scala = larg / v1.width, v = pg.getViewport({ scale: scala * dpr });
+          var c = document.createElement("canvas");
+          c.width = Math.floor(v.width); c.height = Math.floor(v.height);
+          c.style.width = "100%"; c.className = "sentenza-pdf__pagina";
+          c.setAttribute("aria-label", "Pagina " + n + " di " + doc.numPages);
+          contenitore.appendChild(c);
+          return pg.render({ canvasContext: c.getContext("2d"), viewport: v }).promise;
+        }).then(prossima);
+      }
+      return prossima();
     });
   }
   function testoSentenza(s) {
@@ -361,6 +496,8 @@
     salvaRaccolte(r);
     // il testo integrale viene conservato per la lettura offline e per l'esportazione
     testoSentenza(s).then(function (t) { if (t) kvSet("t|" + s.id, t); }).catch(function () {});
+    // e anche il PDF ufficiale, per vederlo "come nel PDF" senza rete (solo Android/Windows)
+    pdfSentenza(s).then(function (p) { if (p) kvSet("p|" + s.id, p); }).catch(function () {});
     return true;
   }
   function rimuovi(raccoltaId, ids) {
@@ -368,14 +505,14 @@
     if (!rc) return;
     rc.sentenze = rc.sentenze.filter(function (s) { return ids.indexOf(s.id) === -1; });
     salvaRaccolte(r);
-    ids.forEach(function (id) { if (!inRaccolte(id)) kvDel("t|" + id); });
+    ids.forEach(function (id) { if (!inRaccolte(id)) { kvDel("t|" + id); kvDel("p|" + id); } });
   }
   function eliminaRaccolta(raccoltaId) {
     var r = raccolte(), rc = r.filter(function (x) { return x.id === raccoltaId; })[0];
     if (!rc) return;
     var ids = rc.sentenze.map(function (s) { return s.id; });
     salvaRaccolte(r.filter(function (x) { return x.id !== raccoltaId; }));
-    ids.forEach(function (id) { if (!inRaccolte(id)) kvDel("t|" + id); });
+    ids.forEach(function (id) { if (!inRaccolte(id)) { kvDel("t|" + id); kvDel("p|" + id); } });
   }
   function impostaNota(raccoltaId, id, nota) {
     var r = raccolte(), rc = r.filter(function (x) { return x.id === raccoltaId; })[0];
@@ -589,7 +726,7 @@
     return '<article class="sentenza-card" data-sid="' + A.esc(s.id) + '">' +
       '<h3 class="sentenza-card__tit"><a href="#/sentenza/' + encodeURIComponent(s.id) + '" data-apri="' + A.esc(s.id) + '">' + A.esc(s.estremi) + "</a></h3>" +
       (s.materia ? '<p class="sentenza-card__mat">' + A.esc(s.materia) + "</p>" : "") +
-      (s.estratto ? '<p class="sentenza-card__estr">«…' + A.esc(s.estratto) + '…»</p>' : "") +
+      (s.estratto ? '<p class="sentenza-card__estr">«…' + estrattoHTML(s.estratto) + '…»</p>' : "") +
       '<div class="articolo__actions">' + azioniSentenzaHTML(s, salvata) + "</div></article>";
   }
   function azioniSentenzaHTML(s, salvata) {
@@ -646,7 +783,7 @@
             '<label class="sentenza-card__sel"><input type="checkbox" class="sel-sentenza" value="' + A.esc(s.id) + '"> </label>' +
             '<h3 class="sentenza-card__tit"><a href="#/sentenza/' + encodeURIComponent(s.id) + '" data-apri="' + A.esc(s.id) + '">' + A.esc(s.estremi) + "</a></h3>" +
             (s.materia ? '<p class="sentenza-card__mat">' + A.esc(s.materia) + "</p>" : "") +
-            (s.estratto ? '<p class="sentenza-card__estr">«…' + A.esc(s.estratto) + '…»</p>' : "") +
+            (s.estratto ? '<p class="sentenza-card__estr">«…' + estrattoHTML(s.estratto) + '…»</p>' : "") +
             '<textarea class="input sentenza-nota" data-nota="' + A.esc(s.id) + '" rows="2" placeholder="Nota personale (resta su questo dispositivo)">' + A.esc(s.nota || "") + "</textarea>" +
             '<div class="articolo__actions"><button class="act-btn" data-apri="' + A.esc(s.id) + '">&#x1F4C4; Leggi</button>' +
             '<button class="act-btn" data-copia-estremi="' + A.esc(s.id) + '">&#x1F4CB; Estremi</button>' +
@@ -670,11 +807,17 @@
       disegnaRisultati();
     });
     document.addEventListener("click", function (e) {
-      var t = e.target.closest("[data-apri],[data-salva],[data-copia-estremi],#ric-altre,#ric-carica-tutte,#ric-incolla,#ric-incolla-usa,[data-raccolta],#raccolte-indietro,#raccolta-crea," +
+      var t = e.target.closest("[data-apri],[data-salva],[data-copia-estremi],[data-vista-sentenza],#ric-altre,#ric-carica-tutte,#ric-incolla,#ric-incolla-usa,[data-raccolta],#raccolte-indietro,#raccolta-crea," +
         "[data-esporta-word],[data-esporta-file],[data-rinomina],[data-elimina-raccolta],[data-togli],#elimina-selezionate,[data-in],#salva-crea,#salva-chiudi");
       if (!t) return;
       if (t.hasAttribute("data-apri")) { e.preventDefault(); apriSentenza(t.getAttribute("data-apri")); return; }
       if (t.hasAttribute("data-salva")) { var s = trovaScheda(t.getAttribute("data-salva")); if (s) chiediRaccolta(s); return; }
+      if (t.hasAttribute("data-vista-sentenza")) {
+        var sv = trovaScheda(t.getAttribute("data-id")) || { id: t.getAttribute("data-id"), estremi: "" }, bx = $("#sentenza-testo");
+        vistaSentenza.giro++;
+        if (t.getAttribute("data-vista-sentenza") === "pdf") mostraPdf(sv, bx); else mostraTesto(sv, bx);
+        return;
+      }
       if (t.hasAttribute("data-copia-estremi")) { var s2 = trovaScheda(t.getAttribute("data-copia-estremi")); if (s2) A.copyText(s2.estremi + (s2.pdf ? "\n" + s2.pdf : ""), "Estremi copiati"); return; }
       if (t.id === "ric-altre") { stato.mostrate += 50; disegnaRisultati(); return; }
       if (t.id === "ric-carica-tutte") { caricaBlocco(stato.caricate, stato.giro); return; }
@@ -757,6 +900,7 @@
     // per i test e per Antigravity (stessa costruzione delle ricerche)
     _interni: { paroleInQuery: paroleInQuery, fraseInQuery: fraseInQuery, articoloInQuery: articoloInQuery, filtri: filtri, estremi: estremi,
       raccolte: raccolte, aggiungi: aggiungi, rimuovi: rimuovi, nuovaRaccolta: nuovaRaccolta, LIMITI: LIMITI, trasporto: trasporto,
-      usaIncollato: usaIncollato, limStato: function () { return limStato(); }, stessiParametri: stessiParametri, linkComando: linkComando, COMANDO: COMANDO }
+      usaIncollato: usaIncollato, limStato: function () { return limStato(); }, stessiParametri: stessiParametri, linkComando: linkComando, COMANDO: COMANDO,
+      disegnaPdf: disegnaPdf, testoOrdinatoHTML: testoOrdinatoHTML, estrattoHTML: estrattoHTML }
   };
 })();

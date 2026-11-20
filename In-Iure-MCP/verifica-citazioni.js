@@ -73,6 +73,40 @@ function registroNormattiva() {
 }
 const normArt = s => server.normArticolo(String(s).replace(/\s+/g, " "));
 
+/* Regola dell'utente del 20/11/2026: la normativa SOLO da Normattiva; l'app In Iure e' solo un ausilio.
+ * Anche per i codici e le leggi dell'app l'articolo citato deve essere stato scaricato da Normattiva
+ * (estrai_articolo_codice per i codici, estrai_articolo per le altre leggi). */
+function idDaNomeCodice(nome) {
+  const F = fonti();
+  const n = String(nome || "").toLowerCase().replace(/\s+/g, " ").trim();
+  const attuazione = /attuazion|disp\.?\s*att/.test(n);
+  const quale = /procedura civile|c\.?\s*p\.?\s*c\b/.test(n) ? "c.p.c." : /procedura penale|c\.?\s*p\.?\s*p\b/.test(n) ? "c.p.p." :
+    /penale|^c\.?\s*p\.?$/.test(n) ? "c.p." : /civile|^c\.?\s*c\.?$/.test(n) ? "c.c." : /costituzion/.test(n) ? "cost" : "";
+  if (quale) {
+    const c = F.d.codici.find(x => {
+      const a = String(x.abbr).toLowerCase().replace(/\s+/g, " ");
+      if (quale === "cost") return /costituzion/i.test(x.nome) && !attuazione;
+      return attuazione ? /att/.test(a) && a.replace(/\s/g, "").endsWith(quale.replace(/\s/g, "")) : a.replace(/\s/g, "") === quale.replace(/\s/g, "");
+    });
+    if (c) return c.id;
+  }
+  const f = fonteDopo(n);
+  return f && f.tipo === "app" ? f.id : null;
+}
+function lettiDaNormattiva(registro, idCodice, articolo) {
+  const F = fonti();
+  const c = F.d.perId[idCodice];
+  const u = String(c.urn || "").match(/:(\d{4})-\d{2}-\d{2};(\d+)/);
+  const art = normArt(articolo);
+  return registro.filter(e => {
+    const g = e.argomenti || {};
+    if (g.numeroArticolo === undefined || normArt(g.numeroArticolo) !== art) return false;
+    if (e.strumento === "estrai_articolo_codice") return idDaNomeCodice(g.nomeCodice) === idCodice;
+    const numero = parseInt(g.numero, 10), anno = parseInt(g.anno, 10);
+    return (F.perNumero[numero + "/" + anno] === idCodice) || (u && parseInt(u[1], 10) === anno && parseInt(u[2], 10) === numero);
+  });
+}
+
 /* ---------------------------------------------------------------- estrazione delle norme */
 const LEGGE = new RegExp("^(?:del(?:la|lo|l')?\\s+|dal(?:la)?\\s+)?(l\\.|legge|d\\.\\s*lgs\\.?|decreto\\s+legislativo|d\\.\\s*l\\.|decreto[-\\s]legge|d\\.\\s*p\\.\\s*r\\.|r\\.\\s*d\\.|d\\.\\s*m\\.)\\s*(?:(\\d{1,2})\\s+[a-z]+\\s+(\\d{4}),?\\s*)?(?:n\\.\\s*)?(\\d{1,5})(?:\\s*\\/\\s*(\\d{4}))?", "i");
 const TIPO_LEGGE = t => { t = t.toLowerCase().replace(/\s+/g, ""); return /lgs|legislativo/.test(t) ? "decreto.legislativo" : /^d\.l\.|legge$/.test(t) && /decreto/.test(t) || t === "d.l." ? "decreto.legge" : /^l\.|^legge/.test(t) ? "legge" : t; };
@@ -227,8 +261,14 @@ async function verifica(testo, opzioni) {
       if (!a) { (x.marcata ? daVerificare : errori).push(nome + ": NON ESISTE nel testo vigente di " + c.nome + " (app In Iure)"); continue; }
       const t = a.commi.join(" ");
       if (/^\s*articolo abrogato/i.test(t) || (!t.trim() && !a.rubrica)) { (x.marcata ? daVerificare : errori).push(nome + ": articolo ABROGATO o senza testo nella fonte ufficiale (" + t.slice(0, 80) + ")"); continue; }
-      corpus.push(a.rubrica + " " + t);
-      ok.push(nome + " (testo vigente dell'app)");
+      const daNormattiva = lettiDaNormattiva(registro, c.id, x.articolo);
+      if (!daNormattiva.length) {
+        if (x.marcata) daVerificare.push(nome + ": testo non scaricato da Normattiva");
+        else errori.push(nome + ": testo NON scaricato da Normattiva negli ultimi 30 giorni (l'app In Iure e' solo un ausilio, la normativa si cita SOLO da Normattiva): leggilo con Normattiva (estrai_articolo_codice per i codici, estrai_articolo per le leggi) prima di citarlo, oppure togli la citazione");
+        continue;
+      }
+      daNormattiva.forEach(e => corpus.push(e.testo));
+      ok.push(nome + " (testo scaricato da Normattiva)");
     } else {
       const nome = descr + " " + (x.fonte.tipoAtto === "decreto.legislativo" ? "d.lgs." : x.fonte.tipoAtto === "decreto.legge" ? "d.l." : x.fonte.tipoAtto === "legge" ? "L." : x.fonte.tipoAtto) + " " + x.fonte.numero + "/" + x.fonte.anno;
       const trovati = registro.filter(e => e.argomenti && parseInt(e.argomenti.numero, 10) === x.fonte.numero && parseInt(e.argomenti.anno, 10) === x.fonte.anno &&
@@ -290,7 +330,7 @@ async function verifica(testo, opzioni) {
   // CITAZIONI TESTUALI
   const citazioni = estraiCitazioni(originale);
   if (citazioni.length) {
-    for (const id of codiciUsati) corpus.push(F.d.perId[id].articoli.map(a => a.rubrica + " " + a.commi.join(" ")).join(" "));
+    // le frasi tra virgolette di una norma si cercano SOLO nei testi scaricati da Normattiva (gia' nel corpus)
     for (const t of opzioni.documenti || []) corpus.push(t);
     let base = piano(corpus.join(" \u0001 "));
     let caricateSentenze = false;

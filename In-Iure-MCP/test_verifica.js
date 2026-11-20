@@ -37,6 +37,16 @@ const prova = t => verifica(t, { sentenzeweb: swFinto, documenti: ["Il canone e'
   verifica_(s.length === 4 && s[0].sezione === "3" && s[0].archivio === "snciv" && s[1].sezione === "U" && s[1].anno === "2020" && !s[1].ospite && !!s[2].ospite, "sentenze: estremi, Sezioni Unite con data, \"citata in\"");
 
   console.log("2) Citazioni giuste");
+  // regola del 20/11/2026: anche le norme dei codici dell'app valgono solo se scaricate da Normattiva.
+  // Registro simulato con estrai_articolo_codice (testo = quello ufficiale gia' nell'app).
+  const appD = require("./server").carica();
+  const testoApp = (id, num) => { const a = appD.codici.find(c => c.id === id).articoli.find(x => x.num === num); return "Art. " + num + " " + a.rubrica + " " + a.commi.join(" "); };
+  const REG = path.join(dati, "registro-normattiva.jsonl");
+  fs.mkdirSync(dati, { recursive: true });
+  const scriviReg = (strumento, argomenti, testo, t) => fs.appendFileSync(REG, JSON.stringify({ t: t || Date.now(), strumento, argomenti, testo }) + "\n");
+  scriviReg("estrai_articolo_codice", { nomeCodice: "codice civile", numeroArticolo: "1460" }, testoApp("codice-civile", "1460"));
+  scriviReg("estrai_articolo_codice", { nomeCodice: "codice di procedura civile", numeroArticolo: "121" }, testoApp("cpc", "121"));
+  scriviReg("estrai_articolo_codice", { nomeCodice: "disposizioni attuazione c.p.c.", numeroArticolo: "116" }, testoApp("disp-att-cpc", "116"));
   const g = await prova("Ai sensi dell'art. 1460 c.c. e dell'art. 121 c.p.c., «Tutti gli atti del processo sono redatti in modo chiaro e sintetico». Cass. civ., Sez. 3, Ordinanza n. 14424/2023 (decisa il 04/04/2023, depositata il 24/05/2023): \"il conduttore puo' sollevare l'eccezione di inadempimento, ai sensi dell'art. 1460 c.c., non solo quando venga completamente a mancare la prestazione\". Dal contratto: \"Il canone e' di euro 800 mensili, da pagare entro il giorno 5\".");
   verifica_(g.errori.length === 0, "nessun errore su norme, sentenza, date e citazioni testuali vere" + (g.errori.length ? ": " + g.errori.join(" | ") : ""));
   verifica_(g.ok.some(x => /documenti|parola per parola/.test(x)) && g.ok.filter(x => /parola per parola/.test(x)).length === 3, "tre citazioni testuali trovate (codice, sentenza, documento della pratica)");
@@ -54,6 +64,8 @@ const prova = t => verifica(t, { sentenzeweb: swFinto, documenti: ["Il canone e'
   await e("Tribunale di Roma, sent. n. 1234/2024", /autorita' diversa/, "sentenza di merito non verificabile");
   await e("Corte cost. n. 5/2021", /autorita' diversa/, "sentenza della Corte costituzionale non verificabile");
   await e("art. 5 L. 392/1978", /NON scaricato da Normattiva/, "norma fuori dall'app non scaricata");
+  await e("art. 2043 c.c.", /NON scaricato da Normattiva.*solo un ausilio/, "norma del codice letta solo nell'app (non da Normattiva)");
+  await e("art. 117 disp. att. c.p.c.", /NON scaricato da Normattiva/, "disp. att.: articolo diverso da quello scaricato");
   await e("Cass. n. 3333/2021, citata in Cass. civ., Sez. 3, ord. n. 14424/2023", /NON risulta citata/, "\"citata in\" falso: la sentenza ospite non la cita");
 
   console.log("4) Casi ammessi");
@@ -61,13 +73,15 @@ const prova = t => verifica(t, { sentenzeweb: swFinto, documenti: ["Il canone e'
   verifica_(!c.errori.length && c.ok.some(x => /citata in/.test(x)), "\"citata in\" vero: la sentenza ospite la cita davvero");
   const m = await prova("Tribunale di Roma, sent. n. 1234/2024 [DA VERIFICARE]; art. 7 L. 392/1978 [DA VERIFICARE].");
   verifica_(!m.errori.length && m.daVerificare.length === 2, "voci marcate [DA VERIFICARE]: non bloccano ma sono elencate");
-  fs.mkdirSync(dati, { recursive: true });
-  fs.writeFileSync(path.join(dati, "registro-normattiva.jsonl"), JSON.stringify({ t: Date.now(), strumento: "estrai_articolo", argomenti: { tipo: "legge", numero: 392, anno: 1978, numeroArticolo: "5" }, testo: "Art. 5 (Inadempimento del conduttore) Salvo quanto previsto dall'articolo 55, il mancato pagamento del canone decorsi venti giorni dalla scadenza prevista costituisce motivo di risoluzione" }) + "\n");
+  fs.appendFileSync(REG, JSON.stringify({ t: Date.now(), strumento: "estrai_articolo", argomenti: { tipo: "legge", numero: 392, anno: 1978, numeroArticolo: "5" }, testo: "Art. 5 (Inadempimento del conduttore) Salvo quanto previsto dall'articolo 55, il mancato pagamento del canone decorsi venti giorni dalla scadenza prevista costituisce motivo di risoluzione" }) + "\n");
   const nm = await prova("art. 5 L. 392/1978: «il mancato pagamento del canone decorsi venti giorni dalla scadenza prevista».");
   verifica_(!nm.errori.length && nm.ok.some(x => /Normattiva/.test(x)), "norma scaricata da Normattiva (registro) e citazione dal suo testo");
   const vecchio = JSON.stringify({ t: Date.now() - 40 * 86400e3, strumento: "estrai_articolo", argomenti: { tipo: "legge", numero: 300, anno: 1970, numeroArticolo: "18" }, testo: "Art. 18 ..." });
   fs.appendFileSync(path.join(dati, "registro-normattiva.jsonl"), vecchio + "\n");
-  verifica_((await prova("art. 18 L. 300/1970")).errori.length === 0, "statuto dei lavoratori: e' nell'app, verificato sul testo dell'app");
+  verifica_((await prova("art. 18 L. 300/1970")).errori.some(x => /NON scaricato da Normattiva/.test(x)), "statuto dei lavoratori: lettura su Normattiva di 40 giorni fa scaduta -> errore");
+  scriviReg("estrai_articolo", { tipo: "legge", numero: 300, anno: 1970, numeroArticolo: "18" }, "Art. 18 ...");
+  verifica_((await prova("art. 18 L. 300/1970")).errori.length === 0, "statuto dei lavoratori (nell'app): valido solo dopo la lettura su Normattiva");
+  verifica_((await prova("art. 116 disp. att. c.p.c.")).errori.length === 0, "disp. att. c.p.c. scaricate da Normattiva con estrai_articolo_codice");
 
   fs.rmSync(dati, { recursive: true, force: true });
   console.log("\n" + ok + "/" + (ok + ko) + " verifiche superate");

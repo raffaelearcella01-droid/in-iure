@@ -16,6 +16,24 @@ let pass = 0, fail = 0;
 const ok = (c, m) => (c ? (pass++, console.log("  ✓ " + m)) : (fail++, console.log("  ✗ FAIL: " + m)));
 const wait = ms => new Promise(r => setTimeout(r, ms));
 
+// PDF minimo con testo vero su n pagine (Helvetica), per provare la vista "come nel PDF" senza rete
+function pdfMinimo(n) {
+  const ogg = ["<< /Type /Catalog /Pages 2 0 R >>", "<< /Type /Pages /Kids [" + Array.from({ length: n }, (_, i) => (3 + i * 2) + " 0 R").join(" ") + "] /Count " + n + " >>"];
+  const font = 3 + n * 2;
+  for (let i = 0; i < n; i++) {
+    const f = "BT /F1 28 Tf 72 700 Td (CORTE SUPREMA DI CASSAZIONE pagina " + (i + 1) + ") Tj 0 -40 Td (RAGIONI DELLA DECISIONE) Tj ET";
+    ogg.push("<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 " + font + " 0 R >> >> /Contents " + (4 + i * 2) + " 0 R >>");
+    ogg.push("<< /Length " + f.length + " >>\nstream\n" + f + "\nendstream");
+  }
+  ogg.push("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
+  let out = "%PDF-1.4\n"; const off = [];
+  ogg.forEach((o, i) => { off.push(out.length); out += (i + 1) + " 0 obj\n" + o + "\nendobj\n"; });
+  const x = out.length;
+  out += "xref\n0 " + (ogg.length + 1) + "\n0000000000 65535 f \n" + off.map(o => String(o).padStart(10, "0") + " 00000 n \n").join("") +
+    "trailer\n<< /Size " + (ogg.length + 1) + " /Root 1 0 R >>\nstartxref\n" + x + "\n%%EOF\n";
+  return Buffer.from(out, "latin1");
+}
+
 app.whenReady().then(async () => {
   session.defaultSession.on("will-download", (e, item) => {
     const p = path.join(TMP, item.getFilename());
@@ -76,6 +94,22 @@ app.whenReady().then(async () => {
     ok(await js("window.InIureDesktopRete.get('https://example.com/').then(() => false, () => true)"), "indirizzi diversi da SentenzeWeb rifiutati");
     await click('.tab[data-section="ricerca"]');
     ok(await js("document.querySelector('#section-ricerca').classList.contains('is-active') && !/non e' possibile/.test(document.querySelector('#ric-risultati').textContent)"), "sezione Ricerca attiva, senza avviso di indisponibilita'");
+
+    console.log("\n[Ricerca] Sentenza come nel PDF (20/11/2026)");
+    ok(await js("typeof window.InIureDesktopRete.pdf === 'function'"), "ponte per il PDF ufficiale presente");
+    ok(await js("Promise.all([window.InIureDesktopRete.pdf('https://example.com/x.pdf'), window.InIureDesktopRete.pdf('https://www.italgiure.giustizia.it/sncass/isapi/hc.dll/sn.solr/sn-collection/select?q=x')].map(p => p.then(() => false, () => true))).then(a => a.every(Boolean))"),
+      "PDF: rifiutati gli indirizzi che non sono PDF di SentenzeWeb");
+    // PDF vero (IN_IURE_PDF_PROVA = file scaricato da SentenzeWeb) o, in mancanza, un PDF minimo di 2 pagine
+    const pdfProva = process.env.IN_IURE_PDF_PROVA && fs.existsSync(process.env.IN_IURE_PDF_PROVA) ? fs.readFileSync(process.env.IN_IURE_PDF_PROVA) : pdfMinimo(2);
+    const esito = await js("(function(){ var c = document.createElement('div'); c.id = 'prova-pdf'; c.style.width = '800px'; document.body.appendChild(c);" +
+      " return window.InIureRicerca._interni.disegnaPdf(" + JSON.stringify(pdfProva.toString("base64")) + ", c, function(){ return true; }).then(function(){" +
+      " var cs = Array.from(c.querySelectorAll('canvas')); var scuri = cs.map(function(k){ var d = k.getContext('2d').getImageData(0, 0, k.width, k.height).data, n = 0; for (var i = 0; i < d.length; i += 16) if (d[i] < 128) n++; return n; });" +
+      " return { pagine: cs.length, larghezza: cs[0] ? cs[0].width : 0, scuri: scuri }; }); })()");
+    if (process.env.IN_IURE_IMMAGINE_PDF) {   // facoltativo: salva la pagina 1 disegnata, per un controllo a vista
+      const png = await js("document.querySelector('#prova-pdf canvas').toDataURL('image/png')");
+      fs.writeFileSync(process.env.IN_IURE_IMMAGINE_PDF, Buffer.from(png.split(",")[1], "base64"));
+    }
+    ok(esito.pagine >= 1 && esito.scuri.every(n => n > 50), "PDF disegnato pagina per pagina con PDF.js (" + esito.pagine + " pagine, " + (process.env.IN_IURE_PDF_PROVA ? "PDF vero di SentenzeWeb" : "PDF di prova") + ", pixel di testo per pagina: " + esito.scuri.join("/") + ")");
   } catch (e) { fail++; console.error(e); }
 
   console.log("\n========== " + pass + " OK, " + fail + " FAIL ==========");

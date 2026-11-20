@@ -31,8 +31,16 @@ function pdf(pagine) {
   return Buffer.from(out, "latin1");
 }
 
+// registro di Normattiva di prova (non quello dell'utente): art. 2051 c.c. "scaricato" da Normattiva,
+// perche' dal 20/11/2026 le norme si verificano SOLO sui testi di Normattiva (l'app e' solo un ausilio)
+const DATI = fs.mkdtempSync(path.join(os.tmpdir(), "iniure-pratica-dati-"));
+{
+  const a = require("./server").carica().codici.find(c => c.id === "codice-civile").articoli.find(x => x.num === "2051");
+  fs.writeFileSync(path.join(DATI, "registro-normattiva.jsonl"), JSON.stringify({ t: Date.now(), strumento: "estrai_articolo_codice",
+    argomenti: { nomeCodice: "codice civile", numeroArticolo: "2051" }, testo: "Art. 2051 " + a.rubrica + " " + a.commi.join(" ") }) + "\n");
+}
 function avvia(cartella) {
-  const p = spawn(process.execPath, [path.join(__dirname, "pratica.js"), "--cartella", cartella]);
+  const p = spawn(process.execPath, [path.join(__dirname, "pratica.js"), "--cartella", cartella], { env: Object.assign({}, process.env, { IN_IURE_MCP_DATI: DATI }) });
   let buf = "", attese = {}, n = 0;
   p.stdout.setEncoding("utf8");
   p.stdout.on("data", d => { buf += d; let i; while ((i = buf.indexOf("\n")) >= 0) { const m = JSON.parse(buf.slice(0, i)); buf = buf.slice(i + 1); if (attese[m.id]) { attese[m.id](m); delete attese[m.id]; } } });
@@ -97,7 +105,9 @@ function avvia(cartella) {
   const inventato = (await s.strumento("salva_documento_word", { nome_file: "Atto con citazione inventata", testo: "Ai sensi dell'art. 9999 c.c. il convenuto risponde." })).testo;
   verifica(/NON SALVATO/.test(inventato) && /art\. 9999 c\.c\.: NON ESISTE/.test(inventato) && !fs.existsSync(path.join(pr, "In Iure - elaborati", "Atto con citazione inventata.docx")), "atto con un articolo inventato: NON salvato, con l'errore spiegato");
   const vc = (await s.strumento("verifica_citazioni", { testo: "Il contratto dice \"Il canone mensile e' di euro 800\" e l'art. 2051 c.c. si applica." })).testo;
-  verifica(/nessun errore/.test(vc) && /parola per parola/.test(vc), "verifica_citazioni: articolo dell'app e frase del documento della pratica verificati");
+  verifica(/nessun errore/.test(vc) && /parola per parola/.test(vc), "verifica_citazioni: articolo scaricato da Normattiva e frase del documento della pratica verificati");
+  const soloApp = (await s.strumento("salva_documento_word", { nome_file: "Atto con norma solo dall'app", testo: "Ai sensi dell'art. 2043 c.c. il convenuto risponde." })).testo;
+  verifica(/NON SALVATO/.test(soloApp) && /NON scaricato da Normattiva/.test(soloApp), "atto con norma letta solo nell'app (non su Normattiva): NON salvato");
   const rilett = (await s.strumento("leggi_documento", { nome: "In Iure - elaborati/Bozza citazione.docx" })).testo;
   verifica(/risponde ex art\. 2051 c\.c\./.test(rilett), "l'atto salvato si rilegge");
   // verifica indipendente con python-docx, se presente
@@ -115,6 +125,7 @@ function avvia(cartella) {
   verifica(/Nessuna pratica aperta/.test(r2.result.content[0].text), "senza cartella risponde che nessuna pratica e' aperta");
   s2.kill();
 
+  fs.rmSync(DATI, { recursive: true, force: true });
   if (!process.env.IN_IURE_TIENI_PROVA) fs.rmSync(base, { recursive: true, force: true }); else console.log("cartella di prova: " + pr);
   console.log("\n" + ok + "/" + (ok + ko) + " verifiche superate");
   process.exit(ko ? 1 : 0);

@@ -373,3 +373,11 @@ table.stats th{font-size:12px;text-transform:uppercase;letter-spacing:.5px;color
 .ric-comandi ol{margin:4px 0 8px;padding-left:20px}.ric-comandi li{margin:6px 0}
 .ric-comandi textarea{width:100%;box-sizing:border-box;font:inherit;font-size:14px;border:1px solid var(--line);border-radius:8px;padding:8px;margin:4px 0}
 .ric-comandi__err{color:#b3261e;font-weight:600}.ric-comandi__guida{margin-top:8px}.ric-comandi__guida summary{cursor:pointer;font-weight:600}.ric-comandi__guida ol{padding-left:20px}
+/* Ricerca: sentenza "come nel PDF", testo ordinato, parole trovate evidenziate (20/11/2026) */
+.sentenza-vista{display:flex;gap:8px;margin:0 0 12px;flex-wrap:wrap}
+.sentenza-pdf{display:flex;flex-direction:column;gap:12px}
+.sentenza-pdf__pagina{display:block;background:#fff;border:1px solid var(--line);border-radius:4px;box-shadow:0 1px 4px rgba(0,0,0,.12)}
+.sentenza-avviso{font-size:13px;color:var(--ink-soft);margin:0 0 10px}
+.sentenza-testo h3{font-size:calc(15px * var(--fs));margin:14px 0 8px;letter-spacing:.02em}
+.sentenza-testo p{text-align:justify}
+.sentenza-card__estr mark{background:rgba(255,213,79,.55);color:inherit;font-style:normal;padding:0 1px;border-radius:2px}

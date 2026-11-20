@@ -57,14 +57,24 @@ try {
   for (const f of fs.readdirSync(dir)) if (f.endsWith(".pem")) CA.push(fs.readFileSync(path.join(dir, f), "utf8"));
 } catch (e) { /* nessun intermedio */ }
 const agente = new https.Agent({ ca: CA, keepAlive: false, maxSockets: 1 });
-function sentenzeWebGet(url) {
+// PDF ufficiale del provvedimento (20/11/2026: la sentenza si mostra come nel PDF, non dal testo OCR)
+const PDF = "https://www.italgiure.giustizia.it/xway/application/nif/clean/hc.dll?verbo=attach&db=";
+const PDF_OK = /^https:\/\/www\.italgiure\.giustizia\.it\/xway\/application\/nif\/clean\/hc\.dll\?verbo=attach&db=sn(?:civ|pen)&id=[A-Za-z0-9.\/@_-]+\.pdf$/;
+function sentenzeWebGet(url, binario) {
   return new Promise((ok, ko) => {
-    if (typeof url !== "string" || !url.startsWith(SOLR) || url.length > 8000) return ko(new Error("Indirizzo non consentito"));
-    const req = https.get(url, { agent: agente, headers: { "User-Agent": "InIure-Desktop/1.4 (consultazione personale, richieste limitate)", "Accept": "application/json" } }, (res) => {
+    const valido = typeof url === "string" && url.length <= 8000 && (binario ? PDF_OK.test(url) : url.startsWith(SOLR));
+    if (!valido) return ko(new Error("Indirizzo non consentito"));
+    const req = https.get(url, { agent: agente, headers: { "User-Agent": "InIure-Desktop/1.5 (consultazione personale, richieste limitate)", "Accept": binario ? "application/pdf" : "application/json" } }, (res) => {
       const pezzi = []; let tot = 0;
-      res.on("data", (c) => { tot += c.length; if (tot > 60 * 1024 * 1024) { req.destroy(new Error("Risposta troppo grande")); return; } pezzi.push(c); });
+      const max = (binario ? 30 : 60) * 1024 * 1024;
+      res.on("data", (c) => { tot += c.length; if (tot > max) { req.destroy(new Error("Risposta troppo grande")); return; } pezzi.push(c); });
       res.on("end", () => {
-        const testo = Buffer.concat(pezzi).toString("utf8");
+        const corpo = Buffer.concat(pezzi);
+        if (binario) {
+          const pdf = corpo.slice(0, 5).toString("latin1") === "%PDF-";
+          return ok({ status: res.statusCode, data: pdf ? corpo.toString("base64") : null });
+        }
+        const testo = corpo.toString("utf8");
         let data = null;
         try { data = JSON.parse(testo); } catch (e) { /* non JSON: la pagina segnala la risposta inattesa */ }
         ok({ status: res.statusCode, data });
@@ -77,7 +87,11 @@ function sentenzeWebGet(url) {
 }
 ipcMain.handle("iniure-sentenzeweb-get", (e, url) => {
   if (!e.senderFrame || !String(e.senderFrame.url).startsWith(ORIGIN + "/")) throw new Error("Richiesta non consentita");
-  return sentenzeWebGet(url);
+  return sentenzeWebGet(url, false);
+});
+ipcMain.handle("iniure-sentenzeweb-pdf", (e, url) => {
+  if (!e.senderFrame || !String(e.senderFrame.url).startsWith(ORIGIN + "/")) throw new Error("Richiesta non consentita");
+  return sentenzeWebGet(url, true);
 });
 
 const menuTemplate = [

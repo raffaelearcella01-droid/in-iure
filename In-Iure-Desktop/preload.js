@@ -5,4 +5,6 @@
 const { contextBridge, ipcRenderer } = require("electron");
 contextBridge.exposeInMainWorld("InIureDesktopRete", {
   get: (url) => ipcRenderer.invoke("iniure-sentenzeweb-get", String(url || "")),
+  // PDF ufficiale del provvedimento, in base64 (solo l'indirizzo dei PDF di SentenzeWeb)
+  pdf: (url) => ipcRenderer.invoke("iniure-sentenzeweb-pdf", String(url || "")),
 });

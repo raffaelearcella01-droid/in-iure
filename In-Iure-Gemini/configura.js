@@ -74,7 +74,9 @@ fs.writeFileSync(path.join(agents, "mcp_config.json"), JSON.stringify(mcp, null,
 const hooks = {
   "in-iure-solo-fonti-app": {
     PreToolUse: [{
-      matcher: "search_web|read_url_content|browser_.*|run_command|write_to_file|replace_file_content|multi_replace_file_content|generate_image",
+      // nomi reali in agy 1.5.11 (20/11/2026): read_file, write_file, edit_file, run_command; i vecchi restano per sicurezza.
+      // La lettura di file fuori dalla pratica e' bloccata dall'hook GLOBALE ~/.gemini/config/hooks/limita-cartella.js.
+      matcher: "search_web|read_url.*|execute_url|browser_.*|run_command|write_file|edit_file|write_to_file|replace_file_content|multi_replace_file_content|generate_image",
       // Antigravity esegue il comando senza shell (le virgolette arriverebbero a node cosi' come sono) e dalla
       // cartella .agents: percorso relativo, senza spazi (verificato con agy 1.5.5 l'11/11/2026).
       hooks: [{ type: "command", command: "node ../blocca-strumenti.js", timeout: 10 }],

@@ -10,13 +10,18 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 
 const TOT = 1234;
 const richieste = [];
-function finto(url) {
+const pdfRichiesti = [];
+function finto(url, opz) {
   const u = new URL(url);
+  if (opz && opz.binario) {   // PDF ufficiale: si risponde con un PDF minimo (base64 di "%PDF-1.4 ...")
+    pdfRichiesti.push(url);
+    return Promise.resolve({ status: 200, data: Buffer.from("%PDF-1.4\n%%EOF\n").toString("base64") });
+  }
   richieste.push(u);
   const q = u.searchParams.get("q");
   if (/^id:/.test(q)) {
     const id = q.slice(3);
-    return Promise.resolve({ status: 200, data: { response: { numFound: 1, docs: [{ id, kind: "snciv", szdec: "3", anno: 2024, numdec: "01234", tipoprov: "Sentenza", ocr: ["Testo integrale della sentenza " + id + ".\n\nSecondo paragrafo."] }] } } });
+    return Promise.resolve({ status: 200, data: { response: { numFound: 1, docs: [{ id, kind: "snciv", szdec: "3", anno: 2024, numdec: "01234", tipoprov: "Sentenza", ocr: [id === "doc0" ? "ha pronunciato la seguente ORDINANZA. FATTI DI CAUSA Testo integrale della sentenza doc0, ex art. 12 Cost. e art. 2043 c.c. RAGIONI DELLA DECISIONE 1. Con il primo motivo si lamenta. 2.1. Il motivo e' infondato. P.Q.M. La Corte rigetta." : "Testo integrale della sentenza " + id + ".\n\nSecondo paragrafo."] }] } } });
   }
   const start = +u.searchParams.get("start"), rows = +u.searchParams.get("rows");
   const n = Math.max(0, Math.min(rows, TOT - start));
@@ -83,7 +88,8 @@ const until = async (f, ms = 8000) => { const t0 = Date.now(); while (!f() && Da
   click($("#ric-altre"));
   ok($$("#ric-risultati .sentenza-card").length === 100, "«Mostra altri» aggiunge 50 schede");
   ok(/Cass\. civ\., Sez\. 3, ordinanza n\. 10000\/2024/.test($("#ric-risultati").textContent), "estremi della scheda");
-  ok(!/<em>/.test($("#ric-risultati").innerHTML) && /estratto con/.test($("#ric-risultati").textContent), "estratto senza HTML del sito (testo protetto)");
+  ok(!/<em>|&lt;em/.test($("#ric-risultati").innerHTML) && /estratto con/.test($("#ric-risultati").textContent), "estratto senza i marcatori <em> del sito mostrati come testo");
+  ok(/<mark>danno<\/mark>/.test($("#ric-risultati").innerHTML), "parole trovate evidenziate nell'estratto");
   const nPrima = richieste.length;
   $("#ric-form").dispatchEvent(new w.Event("submit", { bubbles: true, cancelable: true }));
   await until(() => !/caricamento/.test($("#ric-stato").textContent) && /schede caricate 1/.test($("#ric-stato").textContent));
@@ -94,8 +100,21 @@ const until = async (f, ms = 8000) => { const t0 = Date.now(); while (!f() && Da
 
   console.log("\n[D] Lettura e salvataggio");
   click($('[data-apri="doc0"]'));
+  await until(() => pdfRichiesti.length > 0);
+  await wait(100);
+  ok(pdfRichiesti.length === 1 && /hc\.dll\?verbo=attach&db=snciv&id=\.\/20240115\/snciv@s30@a2024@n0@tO\.clean\.pdf$/.test(pdfRichiesti[0]), "apertura: chiesto il PDF ufficiale (" + pdfRichiesti[0] + ")");
+  // jsdom non sa disegnare il PDF: l'app deve ripiegare sul testo, spiegandolo (nelle app vere il PDF si vede)
+  await until(() => /PDF non disponibile ora|Testo integrale della sentenza doc0/.test($("#sentenza-testo").textContent));
+  ok(/Come nel PDF/.test($("#sentenza-testo").textContent) && !!$('[data-vista-sentenza="pdf"]'), "tasto «Come nel PDF» presente");
+  ok(/PDF non disponibile ora/.test($("#sentenza-testo").textContent), "se il PDF non si puo' disegnare: avviso e ripiego sul testo");
+  ok(w.InIureStore.get("sw_limitatore", null).r.length >= 4, "anche il PDF passa dalla protezione anti-blocco");
+  click($('[data-vista-sentenza="testo"]'));
   await until(() => /Testo integrale della sentenza doc0/.test($("#sentenza-testo").textContent));
-  ok(!$("#sentenza-detail").hidden && /Testo integrale della sentenza doc0/.test($("#sentenza-testo").textContent), "apertura del testo integrale");
+  ok(!$("#sentenza-detail").hidden && /Testo integrale della sentenza doc0/.test($("#sentenza-testo").textContent), "vista Testo: testo integrale");
+  const h3 = $$("#sentenza-testo h3").map(x => x.textContent), ps = $$("#sentenza-testo .sentenza-testo p").map(x => x.textContent);
+  ok(h3.join("|") === "FATTI DI CAUSA|RAGIONI DELLA DECISIONE|P.Q.M.", "testo ordinato: titoli del provvedimento (" + h3.join("|") + ")");
+  ok(ps.some(p => /^1\. Con il primo motivo/.test(p)) && ps.some(p => /^2\.1\. Il motivo/.test(p)) && ps.some(p => /art\. 12 Cost\. e art\. 2043 c\.c\./.test(p)), "testo ordinato: punti numerati a capo, riferimenti normativi intatti");
+  ok(/riconoscimento ottico/.test($("#sentenza-testo").textContent), "avviso: il testo OCR puo' essere incompleto, quello fedele e' il PDF");
   ok((w.location.protocol === "file:" || /#\/sentenza\/doc0$/.test(w.location.href)), "indirizzo #/sentenza/<id> [" + w.location.hash + "]");
   click($('#sentenza-azioni [data-salva="doc0"]'));
   ok(!$("#salva-modal").hidden, "si apre la scelta della raccolta");
