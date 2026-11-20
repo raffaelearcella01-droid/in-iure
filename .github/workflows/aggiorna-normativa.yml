@@ -31,7 +31,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: ${{ steps.pubblica.outputs.page_url }}
+      url: ${{ steps.pubblica.outputs.page_url || steps.pubblica2.outputs.page_url }}
     steps:
       - uses: actions/checkout@v7
 
@@ -76,6 +76,19 @@ jobs:
         if: inputs.solo_verifica != true
         with:
           path: _site
+      # 20/11/2026: due volte deploy-pages non ha trovato il pacchetto appena caricato ("No artifacts named
+      # github-pages"). Si aspetta un poco e, se fallisce, si ritenta nella STESSA esecuzione (il "Re-run" di
+      # GitHub invece fallisce sempre: "Multiple artifacts named github-pages").
+      - name: Attesa prima della pubblicazione
+        if: inputs.solo_verifica != true
+        run: sleep 15
       - id: pubblica
         if: inputs.solo_verifica != true
+        continue-on-error: true
+        uses: actions/deploy-pages@v5
+      - name: Attesa prima del secondo tentativo
+        if: inputs.solo_verifica != true && steps.pubblica.outcome == 'failure'
+        run: sleep 45
+      - id: pubblica2
+        if: inputs.solo_verifica != true && steps.pubblica.outcome == 'failure'
         uses: actions/deploy-pages@v5
