@@ -63,7 +63,7 @@ if ($agy -and $node) {
     $perim = Join-Path $PSScriptRoot "..\..\In-Iure-Gemini\perimetro\installa.js"
     $esitoPerim = (& node $perim) -join " "
     $okPerim = ($LASTEXITCODE -eq 0) -and (Test-Path "$env:USERPROFILE\.gemini\config\hooks\limita-cartella.js")
-    Esito $okPerim ("Antigravity, perimetro globale (solo cartella della pratica): " + $esitoPerim)
+    Esito $okPerim ("Antigravity, configurazione globale (fonti, comandi, limiti in modalita' pratica): " + $esitoPerim)
 }
 $cc = Get-Command claude -ErrorAction SilentlyContinue
 Esito ([bool]$cc) ("Claude Code (serve alla revisione automatica di quiz e atti): " + $(if ($cc) { "installato" } else { "non installato" }))
