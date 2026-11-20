@@ -66,8 +66,8 @@ var CODICI_INDEX = [
   "categoria": "Diritto Civile",
   "descrizione": "Regio Decreto 16 marzo 1942, n. 262.",
   "count": 3250,
-  "aggiornato": "2026-10-31",
-  "verificato": "2026-11-06",
+  "aggiornato": "2026-11-19",
+  "verificato": "2026-11-20",
   "urn": "urn:nir:stato:regio.decreto:1942-03-16;262",
   "file": "js/codici/codice-civile.js"
  },
@@ -78,8 +78,8 @@ var CODICI_INDEX = [
   "categoria": "Diritto Civile",
   "descrizione": "Disposizioni preliminari al Codice Civile.",
   "count": 31,
-  "aggiornato": "2026-10-31",
-  "verificato": "2026-11-06",
+  "aggiornato": "2026-11-19",
+  "verificato": "2026-11-20",
   "urn": "urn:nir:stato:regio.decreto:1942-03-16;262",
   "file": "js/codici/preleggi.js"
  },
@@ -139,7 +139,7 @@ var CODICI_INDEX = [
   "descrizione": "D.Lgs. 30 giugno 2003, n. 196.",
   "count": 221,
   "aggiornato": "2026-02-20",
-  "verificato": "2026-10-16",
+  "verificato": "2026-11-20",
   "urn": "urn:nir:stato:decreto.legislativo:2003-06-30;196",
   "file": "js/codici/privacy.js"
  },
@@ -235,7 +235,7 @@ var CODICI_INDEX = [
   "descrizione": "Regio Decreto 19 ottobre 1930, n. 1398.",
   "count": 1001,
   "aggiornato": "2026-10-31",
-  "verificato": "2026-11-06",
+  "verificato": "2026-11-20",
   "urn": "urn:nir:stato:regio.decreto:1930-10-19;1398",
   "file": "js/codici/codice-penale.js"
  },
@@ -294,8 +294,8 @@ var CODICI_INDEX = [
   "categoria": "Procedura Penale",
   "descrizione": "D.P.R. 22 settembre 1988, n. 447.",
   "count": 908,
-  "aggiornato": "2026-10-31",
-  "verificato": "2026-11-06",
+  "aggiornato": "2026-11-19",
+  "verificato": "2026-11-20",
   "urn": "urn:nir:stato:decreto.del.presidente.della.repubblica:1988-09-22;447",
   "file": "js/codici/cpp.js"
  },
