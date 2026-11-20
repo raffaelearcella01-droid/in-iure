@@ -197,6 +197,26 @@ Le raccolte della sezione **Raccolte** (prima chiamata «Salvate») restano solo
 
 **Da verificare:** non ho provato il caricamento del file `.doc` su Drive e NotebookLM, né la lettura del file da parte di Antigravity (manca ancora il primo accesso). Ricorda che i testi di SentenzeWeb sono per uso personale: non condividere il taccuino né i file esportati.
 
+### B.2 Antigravity con il semplice `agy` e i comandi dello studio (20/11/2026)
+
+Tasto destro sulla cartella della pratica, «Apri nel terminale», scrivi `agy`. Antigravity lavora normalmente; quando la richiesta riguarda il lavoro legale (fascicolo, atti, pareri, ricerche di normativa o giurisprudenza e simili) attiva da solo la **modalità pratica** per tutta la conversazione: solo i documenti della cartella, normativa SOLO da Normattiva, giurisprudenza SOLO da SentenzeWeb (Ministero), niente web, comandi o scrittura di file (si salva in Word con il controllo delle citazioni). Per lavorare di nuovo senza limiti, apri una nuova conversazione.
+
+Comandi (scrivi il comando seguito da ciò che vuoi):
+
+| Comando | A cosa serve | Esempio |
+| :-- | :-- | :-- |
+| `/fascicolo` | analisi completa del fascicolo | `/fascicolo siamo i convenuti, udienza il 12 marzo` |
+| `/atto` | qualsiasi atto giudiziale o stragiudiziale | `/atto comparsa di costituzione, eccepire la prescrizione` |
+| `/parere` | parere motivato su un quesito | `/parere il cliente può recedere dalla locazione?` |
+| `/giurisprudenza` | ricerca di Cassazione su SentenzeWeb | `/giurisprudenza caduta su marciapiede, caso fortuito` |
+| `/normativa` | testo e quadro delle norme da Normattiva | `/normativa art. 2051 c.c.` |
+| `/replica` | esame di un atto avversario o di un provvedimento e repliche | `/replica memoria 171-ter n. 2 della controparte` |
+| `/lettera` | diffide, messe in mora, lettere alla controparte | `/lettera diffida al conduttore, termine 15 giorni` |
+| `/scadenze` | cronologia e calcolo dei termini | `/scadenze termine per l'appello` |
+| `/controlla-citazioni` | controllo delle citazioni di un atto | `/controlla-citazioni bozza comparsa.docx` |
+
+Restano disponibili anche `/redazione-atto`, `/stile-atti` e `/lavoro-sulla-pratica`. Tutti i comandi salvano in Word nella sottocartella «In Iure - elaborati» e indicano i punti `[DA COMPLETARE]` e `[DA VERIFICARE]`.
+
 ---
 
 ## C. Portare tutto sul PC personale

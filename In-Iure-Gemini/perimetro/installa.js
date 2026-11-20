@@ -75,7 +75,9 @@ function installa(home) {
       fs.copyFileSync(fHooks, fHooks + ".non-valido-" + Date.now()); hooks = {}; fatto.push("hooks.json non valido (copia conservata)");
     }
   }
-  hooks[VOCE] = { PreToolUse: [{ matcher: MATCHER, hooks: [{ type: "command", command: "node hooks/limita-cartella.js", timeout: 10 }] }] };
+  // PreToolUse: controllo degli strumenti; PreInvocation: avviso al modello quando scatta la modalita' pratica
+  hooks[VOCE] = { PreToolUse: [{ matcher: MATCHER, hooks: [{ type: "command", command: "node hooks/limita-cartella.js", timeout: 10 }] }],
+    PreInvocation: [{ type: "command", command: "node hooks/limita-cartella.js", timeout: 10 }] };
   scriviSeDiverso(fHooks, JSON.stringify(hooks, null, 2) + "\n", "hooks.json");
 
   // 3. regola globale: perimetro + regole dell'assistente In Iure
@@ -92,23 +94,14 @@ function installa(home) {
   else md = (md.trim() ? md.replace(/\s*$/, "\n\n") : "") + blocco + "\n";
   scriviSeDiverso(fMd, md, "GEMINI.md");
 
-  // 4. niente accesso fuori dalla cartella di lavoro
+  // 4. impostazioni di agy. Dal 20/11/2026 notte i limiti valgono solo in modalita' pratica (li applica l'hook):
+  //    "allowNonWorkspaceAccess" NON viene piu' imposto a false, perche' fuori dalle pratiche agy deve lavorare
+  //    come di consueto; in modalita' pratica la lettura fuori cartella la nega comunque l'hook.
   const fSet = path.join(gem, "antigravity-cli", "settings.json");
   const testoSet = leggi(fSet);
   let set = {};
   if (testoSet != null && testoSet.trim()) { try { set = JSON.parse(testoSet); } catch (e) { set = null; } }
-  if (set && set.allowNonWorkspaceAccess !== false) {
-    if (testoSet != null && set.allowNonWorkspaceAccess === true) {   // agy a volte toglie la chiave: copia solo se era "true"
-      let bak = fSet + ".bak-" + new Date().toISOString().slice(0, 19).replace(/[-:]/g, "").replace("T", "-");
-      const base = bak;
-      for (let n = 2; fs.existsSync(bak); n++) bak = base + "-" + n;
-      fs.copyFileSync(fSet, bak);
-    }
-    set.allowNonWorkspaceAccess = false;
-    fs.mkdirSync(path.dirname(fSet), { recursive: true });
-    fs.writeFileSync(fSet, JSON.stringify(set, null, 2) + "\n");
-    fatto.push("settings.json (accesso fuori cartella disattivato)");
-  } else if (!set) fatto.push("ATTENZIONE: settings.json di agy non valido, non modificato");
+  if (!set) fatto.push("ATTENZIONE: settings.json di agy non valido, non modificato");
   // permesso di usare SOLO le fonti di In Iure senza conferme (in modalita' -p agy nega cio' che non e' in allow;
   // l'"allow" dell'hook non basta: verificato con agy 1.5.11 il 20/11/2026)
   if (set) {

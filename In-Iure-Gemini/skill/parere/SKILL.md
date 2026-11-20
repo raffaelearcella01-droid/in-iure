@@ -1,9 +1,11 @@
 ---
 name: parere
-description: Parere legale scritto o valutazione di un caso (pro veritate, difensivo, strategico, sulla proponibilita' di un'azione o di un'impugnazione, sui rischi di una lite). Usala quando l'utente chiede un parere, una valutazione, "che possibilita' abbiamo", "conviene agire", o quando, esaminata una pratica, serve una presa di posizione motivata.
+description: Comando /parere - parere legale scritto o valutazione di un caso (pro veritate, difensivo, strategico, sulla proponibilita' di un'azione o di un'impugnazione, sui rischi di una lite). Usala quando l'utente chiede un parere, una valutazione, "che possibilita' abbiamo", "conviene agire", o quando, esaminata una pratica, serve una presa di posizione motivata.
 ---
 
 # Parere
+
+Come comando: il testo scritto dopo `/parere` e' il quesito (es. "il cliente puo' recedere dal contratto di locazione prima della scadenza?"). Se e' aperta una pratica, i fatti vengono SOLO dai suoi documenti (chiama prima `elenca_documenti`).
 
 1. **Quesito.** Riformula in una o due frasi la domanda a cui il parere risponde. Se e' ambigua, scegli l'interpretazione piu' utile e dichiarala.
 2. **Fatti.** Solo quelli rilevanti, dai documenti della pratica (con documento e pagina) o dalle parole dell'utente (indicati come "riferito dal cliente"). Elenca a parte i fatti mancanti che potrebbero cambiare la conclusione.

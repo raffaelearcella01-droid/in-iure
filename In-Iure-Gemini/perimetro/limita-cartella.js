@@ -10,6 +10,16 @@
  *  - ricerca web generica e generazione di immagini: negate;
  *  - comandi di sistema e scrittura di file: negati (si salva solo in Word con salva_documento_word, che controlla le
  *    citazioni), salvo "consentiComandi" / "consentiScrittura" a true in limita-cartella.json.
+ * Dal 20/11/2026 notte (richiesta dell'utente: "i limiti valgano solo quando lavora sulle pratiche; lo ricava da cio'
+ * che gli chiedo") i limiti valgono SOLO in MODALITA' PRATICA, che scatta quando:
+ *  - la richiesta dell'utente (campo lastUserInput che agy passa agli hook) riguarda lavoro giuridico: fascicolo,
+ *    pratica, atti, pareri, ricerche di normativa o giurisprudenza e simili (parole in PAROLE_GIURIDICHE o in
+ *    "paroleGiuridiche" di limita-cartella.json);
+ *  - oppure l'agente usa una fonte di In Iure (normattiva, sentenzeweb, in-iure, pratica);
+ *  - oppure agy e' stato avviato da In-Iure-Gemini (lanciatori) o da una cartella con "In Iure - elaborati".
+ * Una volta scattata, vale per TUTTA la conversazione (file in stato-conversazioni/): "continua" o "salvalo" non la
+ * spengono. Fuori dalla modalita' pratica agy lavora come di consueto (letture consentite, il resto con conferma).
+ * Lo stesso script, come hook PreInvocation, avvisa il modello (e l'utente) quando la modalita' pratica si attiva.
  * Collegato da ~/.gemini/config/hooks.json. Configurazione: limita-cartella.json (stessa cartella).
  * Registro delle decisioni: limita-cartella.log (stessa cartella). */
 "use strict";
@@ -58,6 +68,60 @@ function valori(o, chiave, acc) {
   return acc;
 }
 const ASSOLUTO = /^(?:[a-z]:(?:[\\/]|$)|\\\\|\/|~[\\/]|file:)/i;
+
+/* ---------------------------------------------------------------- modalita' pratica */
+const PAROLE_GIURIDICHE = new RegExp([
+  // comandi dello studio (skill di In Iure richiamate con /nome)
+  "^\\s*/(fascicolo|atto|parere|giurisprudenza|normativa|replica|lettera|scadenze|controlla-citazioni|redazione-atto|lavoro-sulla-pratica|stile-atti)\\b",
+  "fascicol", "\\bpratic[ah]e?\\b", "\\bpareri?\\b", "\\batt[oi] (giudiziar|di |introdutt|difensiv|processual)", "\\batto\\b",
+  "citazione", "\\bricors", "comparsa", "memori[ae] (difensiv|integrativ|di replica|ex art|conclusional|171)", "conclusional",
+  "\\bappello\\b", "diffida", "precetto", "pignorament", "decreto ingiuntivo", "ingiunzion", "opposizione",
+  "sentenz", "ordinanz", "giurisprudenz", "cassazione", "massim[ae] (giurisprud|della cassazione|ufficial)", "precedent[ie] giurispr",
+  "normativ", "\\bnorm[ae]\\b", "\\bart(t)?\\.\\s*\\d", "\\barticol[oi]\\s+\\d", "codice civile", "codice penale", "procedura civile",
+  "procedura penale", "\\bc\\.\\s?c\\.", "\\bc\\.\\s?p\\.", "\\blegge\\b", "d\\.\\s?lgs", "decreto legislativo", "d\\.\\s?p\\.\\s?r",
+  "tribunale", "corte d'appello", "\\bgiudic[ei]\\b", "udienz", "\\bcausa (civile|penale|di lavoro|pendente)", "controparte",
+  "risarciment", "responsabilita' (civile|contrattuale|extracontrattuale|medica|professionale)", "responsabilita (civile|contrattuale|extracontrattuale|medica|professionale)",
+  "contratt", "inadempiment", "prescrizion", "decadenz", "notifica (dell|del ricorso|a mezzo)", "procura alle liti", "mediazione", "negoziazione assistita",
+  "separazion", "divorzi", "success(ione|orio)", "eredit", "locazion", "sfratt", "condomini", "usucapion", "servitu",
+  "normattiva", "sentenzeweb", "italgiure", "in iure", "avvocat", "\\blegale\\b", "giuridic", "diritto (civile|penale|del lavoro|amministrativo|tributario)",
+].join("|"), "i");
+function senzaAccenti(t) { return String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[’]/g, "'"); }
+function serverDi(tc, nome) {
+  const a = tc.args && typeof tc.args === "object" ? tc.args : {};
+  let srv = "";
+  for (const k of Object.keys(a)) if (/server/i.test(k)) { const v = valori(a[k], k, [])[0]; srv = v ? String(v.valore) : ""; }
+  if (!srv) { const m = /^mcp_?(.+)$/.exec(nome); if (m) srv = (SERVER.filter(x => m[1].indexOf(x.replace(/-/g, "_")) === 0 || m[1].indexOf(x) === 0)[0] || m[1]); }
+  return srv.toLowerCase().trim();
+}
+function motivoPratica(inp, srv) {
+  const cwd = inp.cwd || (inp.workspacePaths || [])[0] || "";
+  if (cwd && fs.existsSync(path.join(cwd, "configura.js")) && fs.existsSync(path.join(cwd, "agy-impostazioni.json"))) return "avvio dall'assistente In Iure";
+  if ([].concat(inp.workspacePaths || [], cwd ? [cwd] : []).some(p => p && fs.existsSync(path.join(p, "In Iure - elaborati")))) return "cartella con elaborati di In Iure";
+  if (srv && SERVER.indexOf(srv) >= 0) return "uso delle fonti giuridiche (" + srv + ")";
+  const testo = senzaAccenti(inp.lastUserInput);
+  let extra = null;
+  if (Array.isArray(conf.paroleGiuridiche) && conf.paroleGiuridiche.length) { try { extra = new RegExp(conf.paroleGiuridiche.join("|"), "i"); } catch (e) { extra = null; } }
+  const m = PAROLE_GIURIDICHE.exec(testo) || (extra && extra.exec(testo));
+  return m ? "richiesta giuridica (\"" + m[0].trim() + "\")" : "";
+}
+const STATO = path.join(__dirname, "stato-conversazioni");
+function statoFile(inp) { const c = String(inp.conversationId || "").replace(/[^A-Za-z0-9-]/g, ""); return c ? path.join(STATO, c + ".json") : ""; }
+function statoLeggi(inp) { const f = statoFile(inp); try { return f ? JSON.parse(fs.readFileSync(f, "utf8")) : {}; } catch (e) { return {}; } }
+function statoScrivi(inp, o) {
+  const f = statoFile(inp); if (!f) return;
+  try {
+    fs.mkdirSync(STATO, { recursive: true });
+    fs.writeFileSync(f, JSON.stringify(o));
+    if (Math.random() < 0.05) for (const n of fs.readdirSync(STATO)) {   // pulizia: conversazioni piu' vecchie di 60 giorni
+      const p = path.join(STATO, n); if (Date.now() - fs.statSync(p).mtimeMs > 60 * 86400000) fs.unlinkSync(p);
+    }
+  } catch (e) { /* facoltativo */ }
+}
+const AVVISO_MODELLO = "MODALITA' PRATICA ATTIVA in questa conversazione. Da ora valgono le regole del perimetro e dell'assistente In Iure " +
+  "(regola globale GEMINI.md): solo i documenti della cartella di lavoro (server pratica); normativa SOLO ED ESCLUSIVAMENTE da Normattiva " +
+  "(server normattiva); giurisprudenza SOLO ED ESCLUSIVAMENTE dai siti ufficiali del Ministero della Giustizia (server sentenzeweb); " +
+  "l'app In Iure solo come ausilio; niente ricerca web, comandi o scrittura di file (pareri e atti solo con salva_documento_word). " +
+  "Un controllo automatico blocca tutto il resto.";
 const CHIAVE_PERCORSO = /path|dir|file|folder|root|cwd|uri|target|location/i;
 
 let dati = "";
@@ -70,6 +134,27 @@ process.stdin.on("end", () => {
   const nome = String(tc.name || "").toLowerCase();
   globalThis.__nome = nome;
   const args = valori(tc.args || {}, "", []);
+
+  // modalita' pratica: una volta attivata vale per tutta la conversazione
+  const evento = inp.hookEventName || (inp.toolCall ? "PreToolUse" : "");
+  const srvMcp = /mcp/.test(nome) ? serverDi(tc, nome) : "";
+  const st = statoLeggi(inp);
+  const motivo = st.pratica ? st.motivo : motivoPratica(inp, srvMcp);
+  if (motivo && !st.pratica) statoScrivi(inp, { pratica: true, motivo, t: new Date().toISOString() });
+  if (evento && evento !== "PreToolUse") {   // PreInvocation / SessionStart: avviso al modello e all'utente, una volta sola
+    if (motivo && !st.annunciato) {
+      statoScrivi(inp, { pratica: true, motivo, t: st.t || new Date().toISOString(), annunciato: true });
+      process.stdout.write(JSON.stringify({ injectSteps: [{ systemMessage: { systemMessage: AVVISO_MODELLO,
+        metadata: { user_markdown: "**In Iure - modalita' pratica attiva** (" + motivo.replace(/[*_`]/g, "") + "): solo i documenti della cartella, normativa da Normattiva, giurisprudenza dai siti del Ministero." } } }] }));
+    } else process.stdout.write("{}");
+    process.exit(0);
+  }
+  if (!motivo) {   // fuori dalla modalita' pratica: Antigravity lavora come di consueto
+    globalThis.__nome = nome + " [libero]";
+    if (/^(read_|view_|list_|grep|find_|glob)/.test(nome) && !/write|edit|replace|delete|move|rename/.test(nome)) esci("allow");
+    esci("ask");
+  }
+  globalThis.__nome = nome + " [pratica]";
 
   const cwd = inp.cwd || (inp.workspacePaths || [])[0] || "";
   const lavoro = [].concat(inp.workspacePaths || [], cwd ? [cwd] : []).filter(Boolean).map(p => norm(p)).filter((p, i, a) => a.indexOf(p) === i);
@@ -87,11 +172,8 @@ process.stdin.on("end", () => {
   //    ("mcp_<server>_<strumento>") o con call_mcp_tool e il nome del server negli argomenti.
   if (/mcp/.test(nome)) {
     const a = tc.args && typeof tc.args === "object" ? tc.args : {};
-    globalThis.__nome = nome + " " + String(a.ServerName || "") + "/" + String(a.ToolName || "");   // solo i nomi nel registro, mai i testi
-    let srv = "";
-    for (const k of Object.keys(a)) if (/server/i.test(k)) srv = String(valori(a[k], k, [])[0] ? valori(a[k], k, [])[0].valore : "");
-    if (!srv) { const m = /^mcp_?(.+)$/.exec(nome); if (m) srv = (SERVER.filter(x => m[1].indexOf(x.replace(/-/g, "_")) === 0 || m[1].indexOf(x) === 0)[0] || m[1]); }
-    srv = srv.toLowerCase().trim();
+    globalThis.__nome = nome + " [pratica] " + String(a.ServerName || "") + "/" + String(a.ToolName || "");   // solo i nomi nel registro, mai i testi
+    const srv = srvMcp;
     if (SERVER.indexOf(srv) >= 0) esci("allow");
     esci("deny", "Fonte non ammessa (" + (srv || nome) + "): " + FONTI + "; per i fatti, solo i documenti della cartella (server pratica).");
   }
